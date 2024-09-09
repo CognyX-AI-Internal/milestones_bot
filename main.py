@@ -160,7 +160,6 @@ def create_checklist_markup(user_id, checklist_options):
 def checklist(message, checklist_options):
     """Send checklist to the user with toggle options."""
     try:
-        print('hello')
         msg = bot.send_message(
             message.chat.id,
             "Please select the options by checking or unchecking:",
@@ -265,13 +264,12 @@ def get_child_age(message):
         elif age <= 60:
             age_group = 60  
         else:
-            bot.register_next_step_handler(msg, age_more_than_60)
+            age_more_than_60(message)
     
         user_data = ast.literal_eval(r.get(message.from_user.id).decode("utf-8"))
         user_data["age_group"] = age_group
         r.set(message.from_user.id, str(user_data))    
 
-        print('weg')
         checklist(message, checklist_options[age_group])
     except ValueError:
         msg = bot.send_message(message.chat.id, "Invalid age. Please enter a valid age.")
