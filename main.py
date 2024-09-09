@@ -3,6 +3,7 @@ import openai
 from flask import Flask, request
 from telebot import TeleBot, types
 from redis import Redis, ConnectionPool
+from datetime import datetime
 from markdownmail import MarkdownMail
 import logging
 import time
@@ -358,6 +359,110 @@ def submit_checklist(call):
     except Exception as e:
         logger.error(f"Error submitting checklist: {e}")
         bot.send_message(call.message.chat.id, "An error occurred while submitting the checklist. Please try again later.")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "generate_report")
+def generate_report(call):
+    """Generate the report and display email options."""
+    try:
+        user_id = call.from_user.id
+        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+
+        default_subject = f"SOAP Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
+        default_body = f"Hello,\n\nHere are the development assessment results for {user_data['name']}:\n\n{user_data['recommendations']}\n\nBest Regards,\nSOAP Bot"
+
+        user_data['email_subject'] = default_subject
+        user_data['email_body'] = default_body
+        r.set(user_id, str(user_data))
+
+        bot.send_message(call.message.chat.id, f"Subject: {default_subject}")
+        bot.send_message(call.message.chat.id, f"Body:\n{default_body}")
+
+        markup = types.InlineKeyboardMarkup()
+        subject_button = types.InlineKeyboardButton("Change Subject", callback_data="change_subject")
+        body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
+        send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
+        markup.add(subject_button, body_button, send_button)
+
+        bot.send_message(call.message.chat.id, "You can change the subject or body, or send the email.", reply_markup=markup)
+
+    except Exception as e:
+        logger.error(f"Error generating report: {e}")
+        bot.send_message(call.message.chat.id, "An error occurred while generating the report. Please try again.")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "change_subject")
+def change_subject(call):
+    """Prompt the user to enter a new subject."""
+    try:
+        msg = bot.send_message(call.message.chat.id, "Please enter a new subject:")
+        bot.register_next_step_handler(msg, set_new_subject)
+
+    except Exception as e:
+        logger.error(f"Error changing subject: {e}")
+
+
+def set_new_subject(message):
+    """Update the subject with user input."""
+    try:
+        user_id = message.from_user.id
+        new_subject = message.text
+
+        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_data['email_subject'] = new_subject
+        r.set(user_id, str(user_data))
+
+        bot.send_message(message.chat.id, f"Subject updated to: {new_subject}")
+
+    except Exception as e:
+        logger.error(f"Error setting new subject: {e}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "change_body")
+def change_body(call):
+    """Prompt the user to enter a new body."""
+    try:
+        msg = bot.send_message(call.message.chat.id, "Please enter a new body for the email:")
+        bot.register_next_step_handler(msg, set_new_body)
+
+    except Exception as e:
+        logger.error(f"Error changing body: {e}")
+
+
+def set_new_body(message):
+    """Update the body with user input."""
+    try:
+        user_id = message.from_user.id
+        new_body = message.text
+
+        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_data['email_body'] = new_body
+        r.set(user_id, str(user_data))
+
+        bot.send_message(message.chat.id, "Email body updated successfully.")
+
+    except Exception as e:
+        logger.error(f"Error setting new body: {e}")
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "send_email")
+def send_email_action(call):
+    """Send the email using the stored subject and body."""
+    try:
+        user_id = call.from_user.id
+        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+
+        subject = user_data['email_subject']
+        body = user_data['email_body']
+
+        for to_email in TO_EMAIL:
+            send_email(subject, body, to_email)
+
+        bot.send_message(call.message.chat.id, "Email sent successfully!")
+
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        bot.send_message(call.message.chat.id, "An error occurred while sending the email. Please try again later.")
 
 
 def age_more_than_range(message):
