@@ -146,14 +146,17 @@ def get_dev_age_from_gpt(message, age_group):
         prev_age_group = AGE_GROUPS[age_group_idx - 1] if age_group_idx > 0 else None
         prev_age_group_2 = AGE_GROUPS[age_group_idx - 2] if age_group_idx > 1 else None
         prev_age_group_3 = AGE_GROUPS[age_group_idx - 3] if age_group_idx > 2 else None 
+        # print(checklist_options.get(p))
 
         system_content = (
             f"You have to strictly respond with a number referring to the age in months.\n"
             f"Do not add any other text to the response.\n"
             # f"These are the expected capabilities of a {prev_age_group_3} months old: {str(checklist_options.get(prev_age_group_3, 'N/A'))}\n"
-            f"These are the expected capabilities of a {prev_age_group_2} months old: {str(checklist_options.get(prev_age_group_2, 'N/A'))}\n"
-            f"These are the expected capabilities of a {prev_age_group} months old: {str(checklist_options.get(prev_age_group, 'N/A'))}\n"
-            f"You will receive a list of capabilities and a corresponding boolean, showing whether the patient is successfully able to do them.\n"
+            f"These are the expected milestones of a {prev_age_group_2} months old: {str(checklist_options.get(prev_age_group_2, 'N/A'))}\n"
+            f"These are the expected milestones of a {prev_age_group} months old: {str(checklist_options.get(prev_age_group, 'N/A'))}\n"
+            f"These are the expected milestones of a {age_group} months old: {str(checklist_options.get(age_group, 'N/A'))}\n"
+            f"You will receive a list of milestones and a corresponding boolean, showing whether the patient is successfully able to do them.\n"
+            f"If the milestones are much more advanced than the previous ones it's known the previous milestones are met. E.g. a child who is talking most likely babbled as a baby."
             f"Return an estimated development age for the child in months.\n"
             f"If the estimated age is less than 3 months, return 0."
         )
@@ -173,11 +176,88 @@ def get_dev_age_from_gpt(message, age_group):
             temperature=0.7,
         )
         report = response.choices[0].message.content
-        return report
+        return int(report)
     except Exception as e:
         logger.error(f"Error generating development age from chatGPT: {e}")
         return None
 
+
+def generate_recommendations(message, age_group):
+    try:
+        openai_client = openai.OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+
+        system_content = (
+            "You will receive a list of tuples, where the the True/False value indicates whether the child has hit a milestone or not"
+            "Return a list of recommendations so that the user can improve"
+            "Do not return recommendations where the user has already hit a milestone"
+            f"Strictly stick to the following recommendations {str(suggestions[age_group])}"
+            "The recommendations should be in Markdown format"
+        )
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": message
+                },
+            ],
+            temperature=0.7,
+        )
+        report = response.choices[0].message.content
+        return report
+    except Exception as e:
+        logger.error(f"Error generating recommendations from chatGPT: {e}")
+        return None
+
+
+
+def get_word_age(dev_age):
+    try:
+        openai_client = openai.OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": (
+                                "You have to strictly respond with age"
+                                "Do not add any other text to the response."
+                                "You will recieve an age in months you have to reply in this format: years, months"
+                                "Ignore the years part if the input is less than 12"
+                                "For example 15: 1 year, 3 months"
+                            ),
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": str(dev_age)
+                        }
+                    ],
+                },
+            ],
+            temperature=0.7,
+        )
+        report = response.choices[0].message.content
+        return report
+    except Exception as e:
+        logger.error(f"Error generating age from chatGPT: {e}")
+        return None    
 
 def create_checklist_markup(user_id, checklist_options):
     """Creates a checklist markup with current selections."""
@@ -241,16 +321,46 @@ def submit_checklist(call):
     """Handle checklist submission."""
     try:
         user_id = call.from_user.id
-        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
+        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
 
-        bot.send_message(call.message.chat.id, "Calculating development age")
+        bot.send_message(call.message.chat.id, "Calculating development age...")
         dev_age = get_dev_age_from_gpt(str(user_data['checklist']), user_data['age_group'])
         bot.send_message(call.message.chat.id, f"Estimated development age is: {dev_age}")
+        
+        user_data['dev_age'] = dev_age
+        word_dev_age = get_word_age(dev_age)
+        user_data['word_dev_age'] = word_dev_age
+        # print(user_data['age_group'], user_data['dev_age'])
+        delay = ((user_data['age_group'] - user_data['dev_age']) * 100) / user_data['age_group']
+
+        if delay < 0:
+            delay = 0
+
+        r.set(user_id, str(user_data))
+
+        bot.send_message(call.message.chat.id, f"The child is estimated to be functioning in the {word_dev_age} age range.")
+        bot.send_message(call.message.chat.id, f"There is a {delay}% delay in the child's development.")
+        bot.send_message(call.message.chat.id, f"Proceeding with recommendations")
+        
+        recommendations = generate_recommendations(str(user_data['checklist']), user_data['age_group'])
+        user_data['recommendations'] = recommendations
+        r.set(user_id, str(user_data))
+
+        bot.send_message(call.message.chat.id, f"Based on the assessment, here are the recommendations for the child:")
+        bot.send_message(call.message.chat.id, recommendations, parse_mode="Markdown")
+
+        markup = types.InlineKeyboardMarkup()
+        yes_button = types.InlineKeyboardButton("Yes", callback_data="generate_report")
+        no_button = types.InlineKeyboardButton("No", callback_data="restart")
+        markup.add(yes_button, no_button)
+        bot.send_message(call.message.chat.id, "Would you like to generate a report?", reply_markup=markup)
+
     except Exception as e:
         logger.error(f"Error submitting checklist: {e}")
+        bot.send_message(call.message.chat.id, "An error occurred while submitting the checklist. Please try again later.")
 
 
-def age_more_than_60(message):
+def age_more_than_range(message):
     """Handler for children over 5 years old."""
     try:
         msg = bot.send_message(
@@ -303,11 +413,9 @@ def get_child_age(message):
             age_group = 36
         elif age <= 48:
             age_group = 48 
-        elif age <= 60:
-            age_group = 60  
         else:
-            age_more_than_60(message)
-    
+            age_group = 60  
+
         user_data = ast.literal_eval(r.get(message.from_user.id).decode("utf-8"))
         user_data["age_group"] = age_group
         r.set(message.from_user.id, str(user_data))    
