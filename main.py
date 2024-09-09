@@ -129,13 +129,58 @@ checklist_options = {
     3 : ["Alerts to sound.", "Quiets or smiles when you talk.", "Makes sounds back and forth with you.", "Makes sounds that differ depending on whether they are happy or upset.", "Coos, makes sounds like ooooo, aahh, and mmmmm.", "Recognizes loved ones and some common objects.", "Turns or looks toward voices or people talking."],
     6 : ["Giggles and laughs.", "Responds to facial expressions.", "Looks at objects of interest and follows objects with their eyes.", "Reacts to toys that make sounds, like those with bells or music.", " Vocalizes during play or with objects in mouth.", "Vocalizes different vowel sounds—sometimes combined with a consonant—like uuuuuummm, aaaaaaagoo, or daaaaaaaaaa.", "Blows 'raspberries.'"],
     9 : ["Looks at you when you call their name.", "Stops for a moment when you say, 'No.'", "Babbles long strings of sounds, like mamamama, upup, or babababa.", "Looks for loved ones when upset.", "Raises arms to be picked up.", "Recognizes the names of some people and objects.", "Pushes away unwanted objects."],
-    12 : ["By age 10 months, reaches for objects.", "Points, waves, and shows or gives objects.", "Imitates and initiates gestures for engaging in social interactions and playing games, like blowing kisses or playing peek-a-boo.", "Tries to copy sounds that you make.", " Enjoys dancing.", "Responds to simple words and phrases like 'Go bye-bye' and 'Look at Mommy.'", "Says one or two words—like mama, dada, hi, and bye."],
+    12 : ["By age 10 months, reaches for objects.", "Points, waves, and shows or gives objects.", "Imitates and initiates gestures for engaging in social interactions and playing games, like blowing kisses or playing peek-a-boo.", "Tries to copy sounds that you make.", "Enjoys dancing.", "Responds to simple words and phrases like 'Go bye-bye' and 'Look at Mommy.'", "Says one or two words—like mama, dada, hi, and bye."],
     18 : ["Looks around when asked 'where' questions—like 'Where's your blanket?'", "Follows directions—like 'Give me the ball', 'Hug the teddy bear', 'Come here', or 'Show me your nose.'", "Points to make requests, to comment, or to get information.", "shakes head for 'no' and nods head for 'yes.'", "Understands and uses words for common objects, some actions, and people in their lives", "Identifies one or more body parts.", "Uses gestures when excited, like clapping or giving a high-five, or when being silly, like sticking out their tongue or making funny faces.", "Uses a combination of long strings of sounds, syllables, and real words with speech-like inflection."],
     24 : ["Uses and understands at least 50 different words for food, toys, animals, and body parts. Speech may not always be clear—like du for 'shoe' or dah for 'dog.'", "Puts two or more words together—like more water or go outside.", "Follows two-step directions—like 'Get the spoon, and put it on the table.'", "Uses words like me, mine, and you.", " Uses words to ask for help.", "Uses possessives, like Daddy's sock."],
     36 : ["Uses word combinations often but may occasionally repeat some words or phrases, like baby - baby - baby sit down or I want - I want juice.", "Tries to get your attention by saying, Look at me!", "Says their name when asked.", "Uses some plural words like birds or toys.", "Uses -ing verbs like eating or running. Adds -ed to the end of words to talk about past actions, like looked or played.", " Gives reasons for things and events, like saying that they need a coat when it's cold outside.", "Asks why and how.", "Answers questions like 'What do you do when you are sleepy?' or 'Which one can you wear?'", "Correctly produces p, b, m, h, w, d, and n in words.", "Correctly produces most vowels in words.", "Speech is becoming clearer but may not be understandable to unfamiliar listeners or to people who do not know your child."],
     48 : ["Compares things, with words like bigger or shorter.", "Tells you a story from a book or a video.", "Understands and uses more location words, like inside, on, and under.", "Uses words like a or the when talking, like a book or the dog.", "Pretends to read alone or with others.", "Recognizes signs and logos like STOP.", "Pretends to write or spell and can write some letters.", "Correctly produces t, k, g, f, y, and -ing in words.", "Says all the syllables in a word.", "Says the sounds at the beginning, middle, and end of words.", "By age 4 years, your child talks smoothly. Does not repeat sounds, words, or phrases most of the time.", "By age 4 years, your child speaks so that people can understand most of what they say. Child may make mistakes on sounds that are later to develop—like l, j, r, sh, ch, s, v, z, and th.", "By age 4 years, your child says all sounds in a consonant cluster containing two or more consonants in a row—like the tw in tweet or the -nd in sand. May not produce all sounds correctly—for example, spway for 'spray.'"],
     60 : ["Produces grammatically correct sentences. Sentences are longer and more complex.", " Includes (1) main characters, settings, and words like and to connect information and (2) ideas to tell stories.", "Uses at least one irregular plural form, like feet or men.", " Understands and uses location words, like behind, beside, and between.", "Uses more words for time—like yesterday and tomorrow—correctly.", "Follows simple directions and rules to play games.", "Locates the front of a book and its title.", "Recognizes and names 10 or more letters and can usually write their own name.", "Imitates reading and writing from left to right.", "Blends word parts, like cup + cake = cupcake. Identifies some rhyming words, like cat and hat.", "Produces most consonants correctly, and speech is understandable in conversation."],
 }
+
+
+AGE_GROUPS = [3, 6, 9, 12, 18, 24, 36, 48, 60]
+
+def get_dev_age_from_gpt(message, age_group):
+    try:
+        openai_client = openai.OpenAI(
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+
+        age_group_idx = AGE_GROUPS.index(age_group)
+        prev_age_group = AGE_GROUPS[age_group_idx - 1] if age_group_idx > 0 else None
+        prev_age_group_2 = AGE_GROUPS[age_group_idx - 2] if age_group_idx > 1 else None
+        prev_age_group_3 = AGE_GROUPS[age_group_idx - 3] if age_group_idx > 2 else None 
+
+        system_content = (
+            f"You have to strictly respond with a number referring to the age in months.\n"
+            f"Do not add any other text to the response.\n"
+            # f"These are the expected capabilities of a {prev_age_group_3} months old: {str(checklist_options.get(prev_age_group_3, 'N/A'))}\n"
+            f"These are the expected capabilities of a {prev_age_group_2} months old: {str(checklist_options.get(prev_age_group_2, 'N/A'))}\n"
+            f"These are the expected capabilities of a {prev_age_group} months old: {str(checklist_options.get(prev_age_group, 'N/A'))}\n"
+            f"You will receive a list of capabilities and a corresponding boolean, showing whether the patient is successfully able to do them.\n"
+            f"Return an estimated development age for the child in months.\n"
+            f"If the estimated age is less than 3 months, return 0."
+        )
+
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": message
+                },
+            ],
+            temperature=0.7,
+        )
+        report = response.choices[0].message.content
+        return report
+    except Exception as e:
+        logger.error(f"Error generating development age from chatGPT: {e}")
+        return None
 
 
 def create_checklist_markup(user_id, checklist_options):
@@ -149,7 +194,8 @@ def create_checklist_markup(user_id, checklist_options):
     markup = types.InlineKeyboardMarkup()
     for idx, option in enumerate(checklist_options):
         status = "✅" if user_data['checklist'][idx] else "⬜️"
-        markup.add(types.InlineKeyboardButton(f"{status} {option}", callback_data=f"toggle_{idx}"))
+        option_text = f"{status} {option}".ljust(73, ' ')
+        markup.add(types.InlineKeyboardButton(f"{option_text}", callback_data=f"toggle_{idx}"))
 
     markup.add(types.InlineKeyboardButton("Submit", callback_data="submit_checklist"))
     restart_button = types.InlineKeyboardButton("Restart", callback_data="restart")
@@ -160,9 +206,12 @@ def create_checklist_markup(user_id, checklist_options):
 def checklist(message, checklist_options):
     """Send checklist to the user with toggle options."""
     try:
-        msg = bot.send_message(
+        numbered_list = "\n".join([f"{idx + 1}. {option}" for idx, option in enumerate(checklist_options)])
+        full_message = f"Please select the options by checking or unchecking:\n\n{numbered_list}"
+
+        bot.send_message(
             message.chat.id,
-            "Please select the options by checking or unchecking:",
+            full_message,
             reply_markup=create_checklist_markup(message.from_user.id, checklist_options)
         )
     except Exception as e:
@@ -198,12 +247,9 @@ def submit_checklist(call):
         user_id = call.from_user.id
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
 
-        selected_options = [option for idx, option in enumerate(checklist_options) if user_data['checklist'][idx]]
-
-        if selected_options:
-            bot.send_message(call.message.chat.id, f"You selected: {', '.join(selected_options)}")
-        else:
-            bot.send_message(call.message.chat.id, "You didn't select any options.")
+        bot.send_message(call.message.chat.id, "Calculating development age")
+        dev_age = get_dev_age_from_gpt(str(user_data['checklist']), user_data['age_group'])
+        bot.send_message(call.message.chat.id, f"Estimated development age is: {dev_age}")
     except Exception as e:
         logger.error(f"Error submitting checklist: {e}")
 
