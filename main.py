@@ -404,6 +404,9 @@ Milestones Bot
         send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
         markup.add(subject_button, body_button, send_button)
 
+        restart_button = types.InlineKeyboardButton("Restart", callback_data="restart")
+        markup.add(restart_button)
+
         bot.send_message(call.message.chat.id, "You can change the subject or body, or send the email.", reply_markup=markup)
 
     except Exception as e:
@@ -479,6 +482,12 @@ def send_email_action(call):
             send_email(subject, body, to_email)
 
         bot.send_message(call.message.chat.id, "Email sent successfully!")
+        
+        markup = types.InlineKeyboardMarkup()
+        restart_button = types.InlineKeyboardButton("Restart", callback_data="restart")
+        markup.add(restart_button)
+
+        bot.send_message(call.message.chat.id, "Would you like to restart?", reply_markup=markup)
 
     except Exception as e:
         logger.error(f"Error sending email: {e}")
