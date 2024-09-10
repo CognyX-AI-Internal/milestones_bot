@@ -436,6 +436,11 @@ def set_new_subject(message):
         r.set(user_id, str(user_data))
 
         bot.send_message(message.chat.id, f"Subject updated to: {new_subject}")
+        markup = types.InlineKeyboardMarkup()
+        subject_button = types.InlineKeyboardButton("Change Subject", callback_data="change_subject")
+        body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
+        send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
+        markup.add(subject_button, body_button, send_button)
 
     except Exception as e:
         logger.error(f"Error setting new subject: {e}")
@@ -463,6 +468,11 @@ def set_new_body(message):
         r.set(user_id, str(user_data))
 
         bot.send_message(message.chat.id, "Email body updated successfully.")
+        markup = types.InlineKeyboardMarkup()
+        subject_button = types.InlineKeyboardButton("Change Subject", callback_data="change_subject")
+        body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
+        send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
+        markup.add(subject_button, body_button, send_button)
 
     except Exception as e:
         logger.error(f"Error setting new body: {e}")
