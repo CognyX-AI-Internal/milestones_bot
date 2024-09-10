@@ -441,6 +441,7 @@ def set_new_subject(message):
         body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
         send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
         markup.add(subject_button, body_button, send_button)
+        bot.send_message(message.chat.id, "You can now change the subject or body, or send the email.", reply_markup=markup)
 
     except Exception as e:
         logger.error(f"Error setting new subject: {e}")
@@ -473,6 +474,7 @@ def set_new_body(message):
         body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
         send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
         markup.add(subject_button, body_button, send_button)
+        bot.send_message(message.chat.id, "You can now change the subject or body, or send the email.", reply_markup=markup)
 
     except Exception as e:
         logger.error(f"Error setting new body: {e}")
