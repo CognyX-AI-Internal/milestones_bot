@@ -52,7 +52,7 @@ def send_email(subject, message, to_email):
     smtp_password = os.environ.get("SMTP_PASSWORD")
     from_email = os.environ.get("FROM_EMAIL")
 
-    from_name = "SOAP Bot"
+    from_name = "Milestones Bot"
     from_addr = f"{from_name} <{from_email}>"
 
     email = MarkdownMail(
@@ -361,6 +361,15 @@ def submit_checklist(call):
         bot.send_message(call.message.chat.id, "An error occurred while submitting the checklist. Please try again later.")
 
 
+def format_years_months(months):
+    years = months // 12
+    remaining_months = months % 12
+    
+    result = f"{years} years, {remaining_months} months" if years else f"{remaining_months} months"
+    
+    return result
+
+
 @bot.callback_query_handler(func=lambda call: call.data == "generate_report")
 def generate_report(call):
     """Generate the report and display email options."""
@@ -368,8 +377,19 @@ def generate_report(call):
         user_id = call.from_user.id
         user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
 
-        default_subject = f"SOAP Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
-        default_body = f"Hello,\n\nHere are the development assessment results for {user_data['name']}:\n\n{user_data['recommendations']}\n\nBest Regards,\nSOAP Bot"
+        default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
+        default_body = f"""
+Hello,
+            
+Here are the development assessment results for {user_data['name']},  This child is currently {format_years_months(user_data['age'])} months old and is performing in the {user_data['word_dev_age']} range according to ASHA Developmental Milestones. The recommendations for the team and family are to:
+        
+{user_data['recommendations']}
+        
+For exact age equivalencies a formal full speech and language assessment is needed. See this https://www.asha.org/public/developmental-milestones/communication-milestones/ from ASHA for further recommendations.
+
+Best Regards,
+Milestones Bot
+    """
 
         user_data['email_subject'] = default_subject
         user_data['email_body'] = default_body
