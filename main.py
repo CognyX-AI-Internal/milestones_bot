@@ -36,14 +36,13 @@ r = Redis(connection_pool=pool)
 
 AGE_GROUPS = [3, 6, 9, 12, 18, 24, 36, 48, 60]
 
-with open("checklist_options.json", "r") as f:
+with open("checklist_options.json", "r", encoding="utf-8") as f:
     checklist_options = ast.literal_eval(f.read())
 checklist_options = {int(k): v for k, v in checklist_options.items()}
 
-with open("suggestions.json", "r") as f:
+with open("suggestions.json", "r", encoding="utf-8") as f:
     suggestions = ast.literal_eval(f.read())
 suggestions = {int(k): v for k, v in suggestions.items()}
-
 
 def send_email(subject, message, to_email):
     smtp_server = os.environ.get("SMTP_SERVER")
