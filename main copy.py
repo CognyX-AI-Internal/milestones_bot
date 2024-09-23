@@ -5,7 +5,6 @@ from telebot import TeleBot, types
 from redis import Redis, ConnectionPool
 from datetime import datetime
 from markdownmail import MarkdownMail
-import markdown
 import logging
 import time
 import ast
@@ -47,35 +46,6 @@ def escape_markdown_v2(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(r'([%s])' % re.escape(escape_chars), r'\\\1', text)
 
-def split_message(text, max_length=4000):
-    """
-    Splits a long message into smaller chunks to comply with Telegram's message length limits.
-    
-    Args:
-        text (str): The original message text to split.
-        max_length (int): The maximum length of each chunk. Default is 4000 to provide a buffer below Telegram's 4096 limit.
-    
-    Returns:
-        List[str]: A list of message chunks.
-    """
-    messages = []
-    paragraphs = text.split('\n\n')  # Split text by double newlines (paragraphs)
-    
-    current_message = ""
-    for para in paragraphs:
-        # Check if adding the next paragraph exceeds the max_length
-        if len(current_message) + len(para) + 2 <= max_length:
-            current_message += para + '\n\n'
-        else:
-            if current_message:
-                messages.append(current_message.strip())
-            current_message = para + '\n\n'
-    
-    # Append any remaining text
-    if current_message:
-        messages.append(current_message.strip())
-    
-    return messages
 
 def send_email(subject, message, to_email):
     smtp_server = os.environ.get("SMTP_SERVER")
@@ -88,9 +58,8 @@ def send_email(subject, message, to_email):
     from_addr = f"{from_name} <{from_email}>"
 
     email = MarkdownMail(
-        from_addr=from_addr, to_addr=to_email, subject=subject, content=markdown.markdown(message)
+        from_addr=from_addr, to_addr=to_email, subject=subject, content=message
     )
-    logger.info(f"Email sent successfully"+ markdown.markdown(message))
     try:
         email.send(
             smtp_server, login=smtp_login, password=smtp_password, port=smtp_port
@@ -408,10 +377,10 @@ def generate_recommendations_new(message,age):
             "- [Bullet Point]\n"
             "- [Bullet Point]\n"
 
-            "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range according to the milestones met].\n"
+            "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range].\n"
 
 
-            "## Recommendations for Parents:\n"
+            "   ### Recommendations for Parents:\n"
             "1. **Speech and Language Enrichment:**\n"
             "- [Sub Bullet]\n"
             "- [Sub Bullet]\n"
@@ -422,7 +391,7 @@ def generate_recommendations_new(message,age):
             "- [Sub Bullet]\n"
             "- [Sub Bullet]\n"
 
-            "## Recommendations for the Clinical Team:\n"
+            "### Recommendations for the Clinical Team:\n"
             "1. **Further Evaluation:**\n"
             "- [Sub Bullet]\n"
             "2. **Early Intervention Services:**\n"
@@ -614,56 +583,6 @@ def submit_checklist(call):
 
         # Format the checklist for user-friendly display
         formatted_checklist = "\n".join([f"{idx + 1}. {milestone}" for idx, milestone in enumerate(achieved_milestones)])
-        
-        current_age_group = user_data['age_group']
-        current_checklist = user_data['checklists'].get(current_age_group, [])
-
-        # Determine if all milestones are achieved
-        all_achieved = all(current_checklist)
-
-        if all_achieved:
-            # Initialize achieved_milestones array if not present
-            if 'achieved_milestones' not in user_data:
-                user_data['achieved_milestones'] = []
-            
-            # Add achieved milestones to achieved_milestones array
-            achieved_milestones = checklist_options[current_age_group]
-            user_data['achieved_milestones'].extend(achieved_milestones)
-
-            # Determine the next age group
-            current_index = AGE_GROUPS.index(current_age_group)
-            if current_index < len(AGE_GROUPS) - 1:
-                next_age_group = AGE_GROUPS[current_index + 1]
-                user_data['age_group'] = next_age_group
-                r.set(user_id, str(user_data))
-
-                # Notify the user and display next milestones
-                bot.send_message(
-                    call.message.chat.id, 
-                    "🎉 Congratulations! You've completed all milestones for this age group.\n\nMoving on to the next set of milestones."
-                )
-
-                numbered_list = "\n".join([f"{idx + 1}. {option}" for idx, option in enumerate(checklist_options[next_age_group])])
-                full_message = f"Showing milestones for {next_age_group} months:\n\n{numbered_list}"
-                
-                bot.send_message(
-                call.message.chat.id,
-                full_message,
-                reply_markup=create_checklist_markup(user_id, checklist_options[next_age_group])
-            )
-                #checklist(call.message, checklist_options[next_age_group])
-                return
-            else:
-                bot.send_message(
-                    call.message.chat.id, 
-                    "🎉 Fantastic! You've reached the highest age group and completed all milestones."
-                )
-        else:
-            # Proceed with existing functionality if not all milestones are achieved
-            achieved_milestones = [
-                checklist_options[current_age_group][idx]
-                for idx, achieved in enumerate(current_checklist) if achieved
-            ]
 
         # Proceed with calculating development age and recommendations
         bot.send_message(call.message.chat.id, 'Milestones achieved by the child:\n' + formatted_checklist)
@@ -688,34 +607,15 @@ def submit_checklist(call):
         user_data['recommendations'] = recommendations
         r.set(user_id, str(user_data))
 
-         # Split the recommendations message
-        recommendations_chunks = split_message(
-            f"📝 Based on the screening, here are the recommendations for the child:\n\n{escaped_recommendations}",
-            max_length=4000
-        )
-            
-        # Send each chunk sequentially
-        for chunk in recommendations_chunks:
-            bot.send_message(
-                call.message.chat.id, 
-                chunk, 
-                parse_mode="MarkdownV2"
-            )
-
-        default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
-        user_data['email_subject'] = default_subject
-        user_data['email_body'] = escaped_recommendations
-        r.set(user_id, str(user_data))
+        bot.send_message(call.message.chat.id, "Based on the screening, here are the recommendations for the child:")
+        bot.send_message(call.message.chat.id, escaped_recommendations, parse_mode="MarkdownV2")
 
         # Ask if user wants to generate a report
         markup = types.InlineKeyboardMarkup()
-        subject_button = types.InlineKeyboardButton("Change Subject", callback_data="change_subject")
-        body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
-        send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
-        #yes_button = types.InlineKeyboardButton("Yes", callback_data="generate_report")
-        no_button = types.InlineKeyboardButton("Restart", callback_data="restart")
-        markup.add(send_button, subject_button, no_button)
-        bot.send_message(call.message.chat.id, "Email Subject: "+default_subject+"\n\nWould you like to email the report?", reply_markup=markup)
+        yes_button = types.InlineKeyboardButton("Yes", callback_data="generate_report")
+        no_button = types.InlineKeyboardButton("No", callback_data="restart")
+        markup.add(yes_button, no_button)
+        bot.send_message(call.message.chat.id, "Would you like to generate a report?", reply_markup=markup)
 
     except Exception as e:
         logger.error(f"Error submitting checklist: {e}")
