@@ -301,7 +301,7 @@ def generate_recommendations_new(message, age, observations):
             "- Do **not** include recommendations for milestones the child has already met.\n"
             "- If the child meets all milestones for their current developmental age range, omit the ** Milestones Expected but Not Met ** section or state that all milestones are met.\n"
             "- Ensure all recommendations are relevant to the areas of need identified.\n"
-            "- The Mileestones reported may be from more than one age group. For example, a 12 month old child may have achieved the 6 month age group milestones and some of the 9 month age group milestones. So calculate the delay and development age accordingly.\n"
+            "- The Mileestones reported for a particular child may be from more than one age group. For example, a 12 month old child may have achieved the 6 month age group milestones and some of the 9 month age group milestones. So check for the milestone in the appropriate age group and calculate the delay and development age accordingly.\n"
             
             "\n\n2. ASHA Communication development milestones (FOR YOUR CONTEXT):\n"
 
