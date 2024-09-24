@@ -274,11 +274,12 @@ def generate_recommendations(message, age_group):
         logger.error(f"Error generating recommendations from chatGPT: {e}")
         return None
 
-def generate_recommendations_new(message,age):
+def generate_recommendations_new(message, age, observations):
     try:
         openai_client = openai.OpenAI(
-                    api_key=os.environ.get("OPENAI_API_KEY"),
-                )
+            api_key=os.environ.get("OPENAI_API_KEY"),
+        )
+        logger.info(f"Observations: {observations}")
        
         system_content = (
             "1. BASE INSTRUCTIONS:\n"
@@ -286,6 +287,7 @@ def generate_recommendations_new(message,age):
             "You will receive:\n"
             "- The child's chronological age.\n"
             "- A list of communication milestones met by the child.\n"
+            "- Additional observations provided by the parent.\n"
 
             "Using this information, you will generate a comprehensive report titled **`SPEECH AND LANGUAGE THERAPY REPORT`** following the specified format. The report should include:\n"
             "- **Overview** section (static text provided below).\n"
@@ -417,7 +419,7 @@ def generate_recommendations_new(message,age):
             "The Communication Milestone Screening Protocol: Birth to 5 (CMSP: B-5) was given based on parent report and/or clinical observation.\n\n"
             "The CMSP: B-5 is a criterion-based speech and language screening tool for children from birth to age 5. It incorporates parent reports, observations in natural environments, and session documentation, systematically comparing findings to the ASHA Developmental Milestones for speech and language. This tool is designed to identify early signs of potential communication delays and to inform decisions regarding the need for further comprehensive assessment.\n\n"
 
-            "## Observations:\n"
+            "## Observations:[Mention [Additional observations] if provided by user.]\n"
             "[Child’s Name] is [Child’s Current Age] old at the time of screening. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [Developmental Age Range] according to their milestones. Clinical observations and parent reports indicate the following:\n\n"
             "  - [Main Bullet Point 1]\n"
             "  - [Main Bullet Point 2]\n"
@@ -438,58 +440,44 @@ def generate_recommendations_new(message,age):
             "    - [Sub-Bullet Point 3]\n"
 
             "## Milestones Expected but Not Met (Based on [Child’s Current Age] ASHA Developmental Milestones):\n"
-            "  - **Expressive Language:**[Main Bullet Point 1]\n"
+            "  - **Expressive Language:** [Main Bullet Point 1]\n"
             "    - [Sub-Bullet Point 1]\n"
             "    - [Sub-Bullet Point 2]\n"
             "    - [Sub-Bullet Point 3]\n"
-            "  - **Receptive Language:**[Main Bullet Point 2]\n"
+            "  - **Receptive Language:** [Main Bullet Point 2]\n"
             "    - [Sub-Bullet Point 1]\n"
             "    - [Sub-Bullet Point 2]\n"
             "    - [Sub-Bullet Point 3]\n"
-            "  - **Social Communication:**[Main Bullet Point 3]\n"
+            "  - **Social Communication:** [Main Bullet Point 3]\n"
             "    - [Sub-Bullet Point 1]\n"
             "    - [Sub-Bullet Point 2]\n"  
             "    - [Sub-Bullet Point 3]\n"
 
             "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range according to the milestones met].\n"
 
-
             "## Recommendations for Parents:[Dynamic]\n"
-            "  - **Speech and Language Enrichment:**[Main Bullet Point 1]\n"
+            "  - **Speech and Language Enrichment:** [Main Bullet Point 1]\n"
             "    - [Sub Bullet]\n"
             "    - [Sub Bullet]\n"
             "    - [Sub Bullet]\n"
             "    - [Sub Bullet]\n"
             "    - [Sub Bullet]\n"
-            "  - **Books and Songs:**[Main Bullet Point 2]\n"
+            "  - **Books and Songs:** [Main Bullet Point 2]\n"
             "    - [Sub Bullet]\n"  
             "    - [Sub Bullet]\n"
 
             "## Recommendations for the Clinical Team:[Dynamic]\n"
-            "  - **Further Evaluation:**[Main Bullet Point 1]\n"
+            "  - **Further Evaluation:** [Main Bullet Point 1]\n"
             "    - [Sub Bullet]\n"
-            "  - **Early Intervention Services:**[Main Bullet Point 2]\n"
+            "  - **Early Intervention Services:** [Main Bullet Point 2]\n"
             "    - [Sub Bullet]\n"
             "    - [Sub Bullet]\n"
-            "  - **Ongoing Monitoring:**[Main Bullet Point 3]\n"
+            "  - **Ongoing Monitoring:** [Main Bullet Point 3]\n"
             "    - [Sub Bullet]\n"
-
-            
-            # "\n\nFollow the below Markdown Format for your response:\n"
-            # "##SPEECH AND LANGUAGE THERAPY REPORT\n"
-            # "Child's Age: "
-            # "\n##Overview:(Keep the following as it is.)\n"
-            # "The Communication Milestone Screening Protocol: Birth to 5 (CMSP: B-5) was given based on parent report and/or clinical observation.\n\n"
-            # "The CMSP: B-5 is a criterion-based speech and language screening tool for children from birth to age 5. It incorporates parent reports, observations in natural environments, and session documentation, systematically comparing findings to the ASHA Developmental Milestones for speech and language. This tool is designed to identify early signs of potential communication delays and to inform decisions regarding the need for further comprehensive assessment.\n\n"
-            # "##Observations:(Mention the child's current age, State the developmental age range of the child according to ASHA milestones based on their milestones, Add clinical observations and parent reports with bullet points, Include a concluding statement summarizing the observations.)\n\n"
-            # "##Milestones Achieved: (List the milestones achieved according to the developmental age range you concluded. Categorize them by Expressive Language,Receptive Language, Social Communication or any other categories of ASHA with bullets and sub-bullets)\n\n"
-            # "##Milestones Expected but Not Met (Based on [child's current age range] ASHA Developmental Milestones): (Include only the ASHA milestones of his current biological age range not met by the child (Keep blank if all milestones of the current age range are met), categorize accordingly with bullets and sub-bullets. Add this line in the end Strictly ONLY if child is not meeting the milestones of his age range: `The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range].`')\n\n"
-            # "##Recommendations for Parents: (Numbered points with sub bullet points of recommendations to parents.)\n\n"
-            # "##Recommendations for the Clinical Team: (Numbered points with sub bullet points of recommendations to the clinical team.)\n\n"
         )
 
-
-        response = openai_client.chat.completions.create(            model="gpt-4o-2024-08-06",
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-2024-08-06",
             messages=[
                 {
                     "role": "system",
@@ -497,7 +485,7 @@ def generate_recommendations_new(message,age):
                 },
                 {
                     "role": "user",
-                    "content": "Current age of the child: "+ str(age) +", Milestones met by child: "+message
+                    "content": f"Current age of the child: {age}, \nMilestones met by child: {message},\n Additional observations: {observations}"
                 },
             ],
             temperature=0.7,
@@ -690,11 +678,10 @@ def submit_checklist(call):
                 full_message = f"Showing milestones for {next_age_group} months:\n\n{numbered_list}"
                 
                 bot.send_message(
-                call.message.chat.id,
-                full_message,
-                reply_markup=create_checklist_markup(user_id, checklist_options[next_age_group])
-            )
-                #checklist(call.message, checklist_options[next_age_group])
+                    call.message.chat.id,
+                    full_message,
+                    reply_markup=create_checklist_markup(user_id, checklist_options[next_age_group])
+                )
                 return
             else:
                 bot.send_message(
@@ -708,30 +695,85 @@ def submit_checklist(call):
                 for idx, achieved in enumerate(current_checklist) if achieved
             ]
 
-        # Proceed with calculating development age and recommendations
         bot.send_message(call.message.chat.id, 'Milestones achieved by the child:\n' + formatted_checklist)
-        # bot.send_message(call.message.chat.id, "Calculating development age...")
-        # dev_age = get_dev_age_from_gpt(str(user_data['checklists'][user_data['age_group']]), user_data['age_group'])
-        # bot.send_message(call.message.chat.id, f"Estimated development age is: {dev_age}")
 
-        # user_data['dev_age'] = dev_age
-        # word_dev_age = get_word_age(dev_age)
-        # user_data['word_dev_age'] = word_dev_age
-        # delay = ((user_data['age_group'] - dev_age) * 100) / user_data['age_group']
-        # delay = max(delay, 0)
-        # r.set(user_id, str(user_data))
 
-        # bot.send_message(call.message.chat.id, f"The child is estimated to be functioning in the {word_dev_age} age range.")
-        # bot.send_message(call.message.chat.id, f"There is a {delay}% delay in the child's development.")
-        # bot.send_message(call.message.chat.id, "Proceeding with recommendations...")
+        # Ask the user to add any other observations
+        markup = types.InlineKeyboardMarkup()
+        yes_button = types.InlineKeyboardButton("Yes", callback_data="add_observations")
+        no_button = types.InlineKeyboardButton("No", callback_data="skip_observations")
+        markup.add(yes_button, no_button)
+        bot.send_message(
+            call.message.chat.id, 
+            "Would you like to add any other observations?", 
+            reply_markup=markup
+        )
 
-        recommendations = generate_recommendations_new(formatted_checklist, user_data["age"])
+        # Temporarily store the formatted checklist to use in the next step
+        user_data['formatted_checklist'] = formatted_checklist
+        r.set(user_id, str(user_data))
+
+    except Exception as e:
+        logger.error(f"Error submitting checklist: {e}")
+        bot.send_message(call.message.chat.id, "An error occurred while submitting the checklist. Please try again later.")
+
+@bot.callback_query_handler(func=lambda call: call.data == "add_observations")
+def add_observations(call):
+    """Prompt the user to add additional observations."""
+    try:
+        msg = bot.send_message(call.message.chat.id, "Please enter any additional observations you'd like to add:")
+        bot.register_next_step_handler(msg, save_observations)
+    except Exception as e:
+        logger.error(f"Error prompting for observations: {e}")
+
+def save_observations(message):
+    """Save the user's additional observations."""
+    try:
+        user_id = message.from_user.id
+        observations = message.text.strip()
+
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
+        user_data['observations'] = observations
+        r.set(user_id, str(user_data))
+
+        bot.send_message(message.chat.id, "Observations saved successfully.")
+        bot.send_message(message.chat.id, "Generating recommendations...")
+        
+        # Proceed with recommendations
+        proceed_with_recommendations(message, user_data)
+    except Exception as e:
+        logger.error(f"Error saving observations: {e}")
+        bot.send_message(message.chat.id, "An error occurred while saving your observations. Please try again.")
+
+@bot.callback_query_handler(func=lambda call: call.data == "skip_observations")
+def skip_observations(call):
+    """Skip adding additional observations and proceed."""
+    try:
+        user_id = call.from_user.id
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
+        user_data['observations'] = ""
+        r.set(user_id, str(user_data))
+
+        bot.send_message(call.message.chat.id, "No additional observations added.")
+        bot.send_message(call.message.chat.id, "Generating recommendations...")
+
+        # Proceed with recommendations
+        proceed_with_recommendations(call.message, user_data)
+    except Exception as e:
+        logger.error(f"Error skipping observations: {e}")
+        bot.send_message(call.message.chat.id, "An error occurred. Please try again.")
+
+def proceed_with_recommendations(message, user_data):
+    """Generate and send recommendations based on milestones and observations."""
+    try:
+        formatted_checklist = user_data.get('formatted_checklist', '')
+        recommendations = generate_recommendations_new(formatted_checklist, user_data["age"], user_data.get('observations', ''))
         escaped_recommendations = escape_markdown_v2(recommendations)
 
         user_data['recommendations'] = recommendations
-        r.set(user_id, str(user_data))
+        r.set(message.from_user.id, str(user_data))
 
-         # Split the recommendations message
+        # Split the recommendations message
         recommendations_chunks = split_message(
             f"📝 Based on the screening, here are the recommendations for the child:\n\n{escaped_recommendations}",
             max_length=4000
@@ -740,7 +782,7 @@ def submit_checklist(call):
         # Send each chunk sequentially
         for chunk in recommendations_chunks:
             bot.send_message(
-                call.message.chat.id, 
+                message.chat.id, 
                 chunk, 
                 parse_mode="MarkdownV2"
             )
@@ -748,22 +790,20 @@ def submit_checklist(call):
         default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
         user_data['email_subject'] = default_subject
         user_data['email_body'] = recommendations
-        r.set(user_id, str(user_data))
+        r.set(message.from_user.id, str(user_data))
 
         # Ask if user wants to generate a report
         markup = types.InlineKeyboardMarkup()
         subject_button = types.InlineKeyboardButton("Change Subject", callback_data="change_subject")
         body_button = types.InlineKeyboardButton("Change Body", callback_data="change_body")
         send_button = types.InlineKeyboardButton("Send Email", callback_data="send_email")
-        #yes_button = types.InlineKeyboardButton("Yes", callback_data="generate_report")
         no_button = types.InlineKeyboardButton("Restart", callback_data="restart")
         markup.add(send_button, subject_button, no_button)
-        bot.send_message(call.message.chat.id, "Email Subject: "+default_subject+"\n\nWould you like to email the report?", reply_markup=markup)
+        bot.send_message(message.chat.id, "Email Subject: "+default_subject+"\n\nWould you like to email the report?", reply_markup=markup)
 
     except Exception as e:
-        logger.error(f"Error submitting checklist: {e}")
-        bot.send_message(call.message.chat.id, "An error occurred while submitting the checklist. Please try again later.")
-
+        logger.error(f"Error proceeding with recommendations: {e}")
+        bot.send_message(message.chat.id, "An error occurred while generating recommendations. Please try again later.")
 # ... existing code ...
 def format_years_months(months):
     years = months // 12
