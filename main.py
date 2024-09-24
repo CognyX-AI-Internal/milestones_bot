@@ -11,6 +11,8 @@ import time
 import ast
 from dotenv import load_dotenv
 import re
+import smtplib
+from email.mime.text import MIMEText
 
 load_dotenv()
 
@@ -100,6 +102,44 @@ def send_email(subject, message, to_email):
     except Exception as e:
         print("Error sending email:", e)
 
+def send_email_new(subject, message, to_email):
+       """
+       Sends an email with the given subject and message to the specified recipient.
+
+       Args:
+           subject (str): The subject of the email.
+           message (str): The body of the email. Supports plain text and HTML content.
+           to_email (str): The recipient's email address.
+       """
+       # Retrieve SMTP configuration from environment variables
+       smtp_server = os.environ.get("SMTP_SERVER")
+       smtp_port = int(os.environ.get("SMTP_PORT", 587))  # Default to 587 if not set
+       smtp_login = os.environ.get("SMTP_LOGIN")
+       smtp_password = os.environ.get("SMTP_PASSWORD")
+       from_email = os.environ.get("FROM_EMAIL")
+
+       from_name = "Milestones Bot"
+       from_addr = f"{from_name} <{from_email}>"
+
+       # Create MIMEText object for the email content
+       html = markdown.markdown(message)
+       logger.info(f"Email html:"+ html)
+       msg = MIMEText(html, 'html')  # Use 'plain' for plain text emails
+       msg['Subject'] = subject
+       msg['From'] = from_addr
+       msg['To'] = to_email
+
+       try:
+           # Establish connection with the SMTP server
+           with smtplib.SMTP(smtp_server, smtp_port) as server:
+               server.starttls()  # Secure the connection
+               server.login(smtp_login, smtp_password)  # Log in to the SMTP server
+               server.sendmail(from_addr, [to_email], msg.as_string())  # Send the email
+
+           logger.info("Email sent successfully to %s", to_email)
+       except Exception as e:
+           logger.error("Error sending email: %s", e)
+           print("Error sending email:", e)
 
 @bot.message_handler(commands=["start", "restart"])
 def start(message):
@@ -361,13 +401,13 @@ def generate_recommendations_new(message,age):
             "Use the provided information about the child to fill in the dynamic sections.\n\n"
             
             "**Follow these instructions for the output:**\n"
-            "- **Format:** Ensure the report follows the exact Markdown format, including headings and bullet points.\n"
+            "- **Format:** Ensure the report follows the exact Markdown format, including headings, Main Bullets and nested sub-bullet points.\n"
             "- **Developmental Age Range:** Determine the highest ASHA developmental age range for which the child has met all required milestones.\n"
             "- **Milestones Achieved:** List only the milestones achieved within the determined developmental age range.\n"
             "- **Milestones Expected but Not Met:** Include only the unmet milestones from the current developmental age range. Do **not** include milestones from higher age ranges.\n"
             "- **Delay Percentage:** Calculate and include the delay percentage only if there are unmet milestones.\n"
             "- **Recommendations:** Provide recommendations solely based on the unmet milestones.\n"
-
+          
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
 
             "## Child's Age:\n"
@@ -378,58 +418,61 @@ def generate_recommendations_new(message,age):
             "The CMSP: B-5 is a criterion-based speech and language screening tool for children from birth to age 5. It incorporates parent reports, observations in natural environments, and session documentation, systematically comparing findings to the ASHA Developmental Milestones for speech and language. This tool is designed to identify early signs of potential communication delays and to inform decisions regarding the need for further comprehensive assessment.\n\n"
 
             "## Observations:\n"
-            "[Child’s Name] is [Child’s Current Age] old at the time of screening. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [Developmental Age Range] according to their milestones. Clinical observations and parent reports indicate the following:\n"
-            "- [Bullet Point 1]\n"
-            "- [Bullet Point 2]\n"
-            "- [Bullet Point 3]\n"
+            "[Child’s Name] is [Child’s Current Age] old at the time of screening. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [Developmental Age Range] according to their milestones. Clinical observations and parent reports indicate the following:\n\n"
+            "  - [Main Bullet Point 1]\n"
+            "  - [Main Bullet Point 2]\n"
+            "  - [Main Bullet Point 3]\n"
 
             "These observations indicate a potential delay in expressive and receptive language development compared to the expected developmental milestones for a child of [Child’s Name]’s age.\n"
 
             "## Milestones Achieved:\n"
-
-            "## Milestones Achieved:\n"
             "At the [Developmental Age Range] developmental level, [Child’s Name] has demonstrated the following abilities:\n"
-            "- **Expressive Language:**\n"
-            "- [Bullet Point 1]\n"
-            "- [Bullet Point 2]\n"
-            "- **Receptive Language:**\n"
-            "- [Bullet Point]\n"
-            "- **Social Communication:**\n"
-            "- [Bullet Point]\n"
-            "- [Bullet Point]\n"
+            "  - **Expressive Language:** [Main Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 2]\n"
+            "  - **Receptive Language:** [Main Bullet Point 2]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "  - **Social Communication:** [Main Bullet Point 3]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 2]\n"
+            "    - [Sub-Bullet Point 3]\n"
 
             "## Milestones Expected but Not Met (Based on [Child’s Current Age] ASHA Developmental Milestones):\n"
-            "- **Expressive Language:**\n"
-            "- [Bullet Point]\n"
-            "- [Bullet Point]\n"
-            "- [Bullet Point]\n"
-            "- **Receptive Language:**\n"
-            "- [Bullet Point]\n"
-            "- [Bullet Point]\n"
-            "- [Bullet Point]\n"
+            "  - **Expressive Language:**[Main Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 2]\n"
+            "    - [Sub-Bullet Point 3]\n"
+            "  - **Receptive Language:**[Main Bullet Point 2]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 2]\n"
+            "    - [Sub-Bullet Point 3]\n"
+            "  - **Social Communication:**[Main Bullet Point 3]\n"
+            "    - [Sub-Bullet Point 1]\n"
+            "    - [Sub-Bullet Point 2]\n"  
+            "    - [Sub-Bullet Point 3]\n"
 
             "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range according to the milestones met].\n"
 
 
-            "## Recommendations for Parents:\n"
-            "1. **Speech and Language Enrichment:**\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
-            "3. **Books and Songs:**\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
+            "## Recommendations for Parents:[Dynamic]\n"
+            "  - **Speech and Language Enrichment:**[Main Bullet Point 1]\n"
+            "    - [Sub Bullet]\n"
+            "    - [Sub Bullet]\n"
+            "    - [Sub Bullet]\n"
+            "    - [Sub Bullet]\n"
+            "    - [Sub Bullet]\n"
+            "  - **Books and Songs:**[Main Bullet Point 2]\n"
+            "    - [Sub Bullet]\n"  
+            "    - [Sub Bullet]\n"
 
-            "## Recommendations for the Clinical Team:\n"
-            "1. **Further Evaluation:**\n"
-            "- [Sub Bullet]\n"
-            "2. **Early Intervention Services:**\n"
-            "- [Sub Bullet]\n"
-            "- [Sub Bullet]\n"
-            "3. **Ongoing Monitoring:**\n"
-            "- [Sub Bullet]\n"
+            "## Recommendations for the Clinical Team:[Dynamic]\n"
+            "  - **Further Evaluation:**[Main Bullet Point 1]\n"
+            "    - [Sub Bullet]\n"
+            "  - **Early Intervention Services:**[Main Bullet Point 2]\n"
+            "    - [Sub Bullet]\n"
+            "    - [Sub Bullet]\n"
+            "  - **Ongoing Monitoring:**[Main Bullet Point 3]\n"
+            "    - [Sub Bullet]\n"
 
             
             # "\n\nFollow the below Markdown Format for your response:\n"
@@ -704,7 +747,7 @@ def submit_checklist(call):
 
         default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
         user_data['email_subject'] = default_subject
-        user_data['email_body'] = escaped_recommendations
+        user_data['email_body'] = recommendations
         r.set(user_id, str(user_data))
 
         # Ask if user wants to generate a report
