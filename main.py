@@ -147,7 +147,7 @@ def start(message):
     try:
         message_to_send = "Hello! Please enter the child's name"
         
-        r.set(message.from_user.id, str({}))
+        r.set(message.chat.id, str({}))
 
         msg = bot.send_message(message.chat.id, message_to_send, parse_mode="Markdown")
         bot.register_next_step_handler(msg, get_child_name)
@@ -159,7 +159,7 @@ def get_child_name(message):
     """Handler to get and store the child's name."""
     try:
         user_data = {"name": message.text}
-        r.set(message.from_user.id, str(user_data))
+        r.set(message.chat.id, str(user_data))
         
         message_to_send = "Thanks! Now, please enter the child's age (e.g., 2 years, 3 months)."
         msg = bot.send_message(message.chat.id, message_to_send, parse_mode="Markdown")
@@ -564,7 +564,7 @@ def checklist(message, checklist_options):
         bot.send_message(
             message.chat.id,
             full_message,
-            reply_markup=create_checklist_markup(message.from_user.id, checklist_options)
+            reply_markup=create_checklist_markup(message.chat.id, checklist_options)
         )
     except Exception as e:
         logger.error(f"Error in sending checklist: {e}")
@@ -573,7 +573,7 @@ def checklist(message, checklist_options):
 def toggle_checklist(call):
     """Toggle the checked/unchecked state of an option."""
     try:
-        user_id = call.from_user.id
+        user_id = call.message.chat.id
         option_idx = int(call.data.split("_")[1])
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
         age_group = user_data['age_group']
@@ -603,7 +603,7 @@ def toggle_checklist(call):
 def show_previous_milestones(call):
     """Display the previous age group's milestones."""
     try:
-        user_id = call.from_user.id
+        user_id = call.message.chat.id
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
         current_age_group = user_data['age_group']
         current_index = AGE_GROUPS.index(current_age_group)
@@ -634,7 +634,7 @@ def show_previous_milestones(call):
 def submit_checklist(call):
     """Handle checklist submission."""
     try:
-        user_id = call.from_user.id
+        user_id = call.message.chat.id
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
 
         # Collect milestones from all age groups
@@ -730,7 +730,7 @@ def add_observations(call):
 def save_observations(message):
     """Save the user's additional observations."""
     try:
-        user_id = message.from_user.id
+        user_id = message.chat.id
         observations = message.text.strip()
 
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
@@ -750,7 +750,7 @@ def save_observations(message):
 def skip_observations(call):
     """Skip adding additional observations and proceed."""
     try:
-        user_id = call.from_user.id
+        user_id = call.message.chat.id
         user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
         user_data['observations'] = ""
         r.set(user_id, str(user_data))
@@ -772,7 +772,7 @@ def proceed_with_recommendations(message, user_data):
         escaped_recommendations = escape_markdown_v2(recommendations)
 
         user_data['recommendations'] = recommendations
-        r.set(message.from_user.id, str(user_data))
+        r.set(message.chat.id, str(user_data))
 
         # Split the recommendations message
         recommendations_chunks = split_message(
@@ -791,7 +791,13 @@ def proceed_with_recommendations(message, user_data):
         default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
         user_data['email_subject'] = default_subject
         user_data['email_body'] = recommendations
-        r.set(message.from_user.id, str(user_data))
+        r.set(message.chat.id, str(user_data))
+        logger.info(f"User id: {message.chat.id}")
+        logger.info(f"UserId data type: {type(message.chat.id)}")
+        logger.info(f"User data saved before redis: {user_data}")
+
+        u_data = ast.literal_eval(r.get(message.chat.id).decode("utf-8"))
+        logger.info(f"User data saved from redis: {u_data}")
 
         # Ask if user wants to generate a report
         markup = types.InlineKeyboardMarkup()
@@ -820,8 +826,8 @@ def format_years_months(months):
 def generate_report(call):
     """Generate the report and display email options."""
     try:
-        user_id = call.from_user.id
-        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_id = call.message.chat.id
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
 
         default_subject = f"Milestones Report - {user_data['name']} - {datetime.now().strftime('%d/%m/%y %H:%M')}"
         default_body = f"""
@@ -874,10 +880,10 @@ def change_subject(call):
 def set_new_subject(message):
     """Update the subject with user input."""
     try:
-        user_id = message.from_user.id
+        user_id = message.chat.id
         new_subject = message.text
 
-        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
         user_data['email_subject'] = new_subject
         r.set(user_id, str(user_data))
 
@@ -907,10 +913,10 @@ def change_body(call):
 def set_new_body(message):
     """Update the body with user input."""
     try:
-        user_id = message.from_user.id
+        user_id = message.chat.id
         new_body = message.text
 
-        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
         user_data['email_body'] = new_body
         r.set(user_id, str(user_data))
 
@@ -930,8 +936,12 @@ def set_new_body(message):
 def send_email_action(call):
     """Send the email using the stored subject and body."""
     try:
-        user_id = call.from_user.id
-        user_data = ast.literal_eval(r.get(str(user_id)).decode("utf-8"))
+        user_id = call.message.chat.id
+        user_data = ast.literal_eval(r.get(user_id).decode("utf-8"))
+        logger.info(f"User id in send email: {user_id}")
+        logger.info(f"UserId data type in send email: {type(user_id)}")
+        logger.info(f"User data in Send Email: {user_data}")
+
 
         subject = user_data['email_subject']
         body = user_data['email_body']
@@ -983,10 +993,10 @@ def get_child_age(message):
     """Handler to get and store the child's age."""
     try:
         age = int(get_age_from_gpt(message.text))
-        user_data = ast.literal_eval(r.get(message.from_user.id).decode("utf-8"))
+        user_data = ast.literal_eval(r.get(message.chat.id).decode("utf-8"))
         user_data["age"] = age
         
-        r.set(message.from_user.id, str(user_data))
+        r.set(message.chat.id, str(user_data))
         # bot.send_message(message.chat.id, f"Child's name and age saved: {user_data}", parse_mode="Markdown")
 
         if age <= 3:
@@ -1008,9 +1018,9 @@ def get_child_age(message):
         else:
             age_group = 60  
 
-        user_data = ast.literal_eval(r.get(message.from_user.id).decode("utf-8"))
+        user_data = ast.literal_eval(r.get(message.chat.id).decode("utf-8"))
         user_data["age_group"] = age_group
-        r.set(message.from_user.id, str(user_data))    
+        r.set(message.chat.id, str(user_data))    
 
         checklist(message, checklist_options[age_group])
     except ValueError:
