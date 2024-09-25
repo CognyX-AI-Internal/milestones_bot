@@ -289,19 +289,13 @@ def generate_recommendations_new(message, age, observations):
             "- A list of communication milestones met by the child.\n"
             "- Additional observations provided by the parent.\n"
 
-            "Using this information, you will generate a comprehensive report titled **`SPEECH AND LANGUAGE THERAPY REPORT`** following the specified format. The report should include:\n"
-            "- **Overview** section (static text provided below).\n"
-            "- **Observations** section (dynamic based on the child's age and milestones).\n"
-            "- **Milestones Achieved** section (based on the developmental age range).\n"
-            "- **Milestones Expected but Not Met** section (only include unmet milestones from the current developmental age range).\n"         
-            "- **Recommendations for Parents** (only addressing areas of need).\n"
-            "- **Recommendations for the Clinical Team** (only addressing areas of need).\n"
+            "Using this information, you will generate a comprehensive report titled **`SPEECH AND LANGUAGE THERAPY REPORT`** following the specified format."
 
             "**Important:**\n"
             "- Do **not** include recommendations for milestones the child has already met.\n"
             "- If the child meets all milestones for their current developmental age range, omit the ** Milestones Expected but Not Met ** section or state that all milestones are met.\n"
             "- Ensure all recommendations are relevant to the areas of need identified.\n"
-            "- The Mileestones reported for a particular child may be from more than one age group. For example, a 12 month old child may have achieved the 6 month age group milestones and some of the 9 month age group milestones. So check for the milestone in the appropriate age group and calculate the delay and development age accordingly.\n"
+            "- The Milestones reported for a particular child may be from more than one age group. For example, a 12 month old child may have achieved the 6 month age group milestones and some of the 9 month age group milestones. So check for the milestone in the appropriate age group and calculate the delay and development age accordingly.\n"
             
             "\n\n2. ASHA Communication development milestones (FOR YOUR CONTEXT):\n"
 
@@ -405,10 +399,10 @@ def generate_recommendations_new(message, age, observations):
             
             "**Follow these instructions for the output:**\n"
             "- **Format:** Ensure the report follows the exact Markdown format, including headings, Main Bullets and nested sub-bullet points.\n"
-            "- **Developmental Age Range:** Determine the highest ASHA developmental age range for which the child has met all required milestones.\n"
-            "- **Milestones Achieved:** List only the milestones achieved within the determined developmental age range.\n"
+            "- **Developmental Age Range:** Determine the ASHA developmental age range for which the child has met all required milestones.\n"
+            "- **Milestones Achieved:** List only the milestones achieved wihin the current age range.\n"
             "- **Milestones Expected but Not Met:** Include only the unmet milestones from the current developmental age range. Do **not** include milestones from higher age ranges.\n"
-            "- **Delay Percentage:** Calculate and include the delay percentage only if there are unmet milestones.\n"
+            "- **Delay Percentage:** Calculate and include the delay percentage only if there are unmet milestones in the current age range.\n"
             "- **Recommendations:** Provide recommendations solely based on the unmet milestones.\n"
           
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
@@ -454,7 +448,7 @@ def generate_recommendations_new(message, age, observations):
             "    - [Sub-Bullet Point 2]\n"  
             "    - [Sub-Bullet Point 3]\n"
 
-            "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Developmental Age Range according to the milestones met].\n"
+            "The child presents with a delay of approximately [Minimum Percentage]% to [Maximum Percentage]% in communication development based on their chronological age of [Child’s Age] and their estimated developmental age range of [Estimated Developmental Age Range according to the milestones met].\n"
 
             "## Recommendations for Parents:[Dynamic]\n"
             "  - **Speech and Language Enrichment:** [Main Bullet Point 1]\n"
