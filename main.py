@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 import re
 import smtplib
 from email.mime.text import MIMEText
-
+from urllib.parse import urlparse
 load_dotenv()
 
 logging.basicConfig(
@@ -39,8 +39,9 @@ bot = TeleBot(BOT_TOKEN, threaded=True)
 # print(bot.get_webhook_info())
 # print(WEBHOOK_SECRET)
 # print(URL)
-r = Redis(connection_pool=pool, ssl=True, ssl_cert_reqs=None)
-
+redis_url = urlparse(redis_url)
+r = Redis(host=redis_url.hostname, port=redis_url.port, password=redis_url.password, ssl=(redis_url.scheme == "rediss"), ssl_cert_reqs=None)
+# r = Redis(connection_pool=pool)
 
 AGE_GROUPS = [3, 6, 9, 12, 18, 24, 36, 48, 60]
 
