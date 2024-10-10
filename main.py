@@ -23,7 +23,11 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-pool = ConnectionPool.from_url(redis_url)
+
+if redis_url.startswith("redis://localhost"):
+    pool = ConnectionPool.from_url(redis_url)
+else:
+    pool = ConnectionPool.from_url(redis_url, ssl=True, ssl_cert_reqs='required')
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
