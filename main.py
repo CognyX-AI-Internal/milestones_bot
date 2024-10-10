@@ -39,7 +39,7 @@ bot = TeleBot(BOT_TOKEN, threaded=True)
 # print(bot.get_webhook_info())
 # print(WEBHOOK_SECRET)
 # print(URL)
-r = Redis(connection_pool=pool,ssl=True,ssl_cert_reqs='required')
+r = Redis(connection_pool=pool, ssl=True, ssl_cert_reqs=None)
 
 
 AGE_GROUPS = [3, 6, 9, 12, 18, 24, 36, 48, 60]
