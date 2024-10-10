@@ -24,10 +24,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 
-if redis_url.startswith("redis://localhost"):
-    pool = ConnectionPool.from_url(redis_url)
-else:
-    pool = ConnectionPool.from_url(redis_url, ssl=True, ssl_cert_reqs='required')
+pool = ConnectionPool.from_url(redis_url)
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -36,7 +33,14 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 TO_EMAIL = ast.literal_eval(os.environ.get("TO_EMAIL"))
 
 bot = TeleBot(BOT_TOKEN, threaded=True)
-r = Redis(connection_pool=pool)
+# bot.remove_webhook()
+# time.sleep(1)
+# bot.set_webhook(url=f"{URL}/{WEBHOOK_SECRET}")
+# print(bot.get_webhook_info())
+# print(WEBHOOK_SECRET)
+# print(URL)
+r = Redis(connection_pool=pool,ssl=True,ssl_cert_reqs='required')
+
 
 AGE_GROUPS = [3, 6, 9, 12, 18, 24, 36, 48, 60]
 
@@ -1032,7 +1036,6 @@ def webhook():
     update = types.Update.de_json(request.data.decode("utf8"))
     bot.process_new_updates([update])
     return "ok", 200
-
 
 if __name__ == "__main__":
     app.run()
