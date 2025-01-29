@@ -413,7 +413,14 @@ def generate_recommendations_new(message, age, observations):
             "- **Milestones Expected but Not Met:** Include only the unmet milestones from the current developmental age range. Do **not** include milestones from higher age ranges.\n"
             "- **Delay Percentage:** Calculate and include the delay percentage only if there are unmet milestones in the current age range.\n"
             "- **Recommendations:** Provide recommendations solely based on the unmet milestones.\n"
+            "- **Estimated Developmental Age Range:** The estimated developmental age range is the age range that the child's milestones are functioning at. For example, if the child has met all the milestones for the 6-9 month age range, but has not met any milestones for the 10-12 month age range, the estimated developmental age range is 6-9 months.\n\n"
+            "- **Percentage of Delay:** Calculate the accurate percentage of delay based on the difference between the developmental age range and the chronological age of the child.\n\n"
+
+            "For example if a child has chronological age of 14 months and has developmental age in 4 to 6 month age range, the percentage of delay is (14-6/14)*100 = 57.14% to (14-4/14)*100 = 71.42% .\n"
+            "- Do not say that the child has a delay if the child has met all the milestones for the current age range.\n\n"
           
+
+
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
 
             "## Child's Age:\n"
@@ -481,7 +488,7 @@ def generate_recommendations_new(message, age, observations):
         )
 
         response = openai_client.chat.completions.create(
-            model="gpt-4o-2024-08-06",
+            model="gpt-4o-2024-11-20",
             messages=[
                 {
                     "role": "system",
