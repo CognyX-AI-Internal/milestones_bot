@@ -4,15 +4,15 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-openai = "*"
-flask = "*"
-telebot = "*"
-redis = "*"
-markdownmail = "*"
-python-dotenv = "*"
-gunicorn = "*"
+openai = "==2.9.0"
+flask = "==3.0.3"
+pytelegrambotapi = "==4.22.1"
+redis = "==5.0.8"
+markdownmail = "==0.11.0"
+python-dotenv = "==1.0.1"
+gunicorn = "==23.0.0"
 
 [dev-packages]
 
 [requires]
-python_version = "3.11.4"
+python_version = "3.10"

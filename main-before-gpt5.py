@@ -88,102 +88,6 @@ def split_message(text, max_length=4000):
     
     return messages
 
-def get_age_group_label(age_group):
-    """Convert age group number to descriptive label."""
-    age_labels = {
-        3: "Birth to 3 months",
-        6: "4 to 6 months",
-        9: "7 to 9 months",
-        12: "10 to 12 months",
-        18: "13 to 18 months",
-        24: "19 to 24 months",
-        36: "2 to 3 years",
-        48: "3 to 4 years",
-        60: "4 to 5 years"
-    }
-    return age_labels.get(age_group, f"{age_group} months")
-
-def format_structured_milestones(checklists, checklist_options_data):
-    """
-    Format milestones with both achieved and unmet, organized by age group.
-    
-    Returns a dict with:
-    - achieved_by_group: dict of age_group -> list of achieved milestones
-    - unmet_by_group: dict of age_group -> list of unmet milestones
-    - summary: formatted string for GPT
-    """
-    achieved_by_group = {}
-    unmet_by_group = {}
-    
-    for age_group, checklist in checklists.items():
-        age_group_int = int(age_group) if isinstance(age_group, str) else age_group
-        options = checklist_options_data.get(age_group_int, [])
-        
-        achieved = []
-        unmet = []
-        
-        for idx, is_achieved in enumerate(checklist):
-            if idx < len(options):
-                if is_achieved:
-                    achieved.append(options[idx])
-                else:
-                    unmet.append(options[idx])
-        
-        if achieved:
-            achieved_by_group[age_group_int] = achieved
-        if unmet:
-            unmet_by_group[age_group_int] = unmet
-    
-    # Build summary string
-    summary_parts = []
-    
-    # Achieved milestones by age group
-    if achieved_by_group:
-        summary_parts.append("MILESTONES ACHIEVED:")
-        for age_group in sorted(achieved_by_group.keys()):
-            label = get_age_group_label(age_group)
-            summary_parts.append(f"\n[{label}]:")
-            for milestone in achieved_by_group[age_group]:
-                summary_parts.append(f"  ✓ {milestone}")
-    
-    # Unmet milestones by age group
-    if unmet_by_group:
-        summary_parts.append("\n\nMILESTONES NOT ACHIEVED:")
-        for age_group in sorted(unmet_by_group.keys()):
-            label = get_age_group_label(age_group)
-            summary_parts.append(f"\n[{label}]:")
-            for milestone in unmet_by_group[age_group]:
-                summary_parts.append(f"  ✗ {milestone}")
-    
-    return {
-        'achieved_by_group': achieved_by_group,
-        'unmet_by_group': unmet_by_group,
-        'summary': "\n".join(summary_parts)
-    }
-
-def calculate_milestone_stats(checklists, current_age_group, checklist_options_data):
-    """
-    Calculate milestone statistics for the current age group.
-    
-    Returns:
-    - total: total milestones in current age group
-    - achieved: number achieved
-    - unmet: number not achieved
-    - percentage_met: percentage of milestones met
-    """
-    current_checklist = checklists.get(current_age_group, checklists.get(str(current_age_group), []))
-    total = len(current_checklist)
-    achieved = sum(1 for x in current_checklist if x)
-    unmet = total - achieved
-    percentage_met = round((achieved / total) * 100, 1) if total > 0 else 0
-    
-    return {
-        'total': total,
-        'achieved': achieved,
-        'unmet': unmet,
-        'percentage_met': percentage_met
-    }
-
 def send_email(subject, message, to_email):
     smtp_server = os.environ.get("SMTP_SERVER")
     smtp_port = int(os.environ.get("SMTP_PORT"))
@@ -250,7 +154,6 @@ def send_email_new(subject, message, to_email):
 def start(message):
     """Handle /start and /restart commands."""
     try:
-        # logger.info(f"Starting the bot for user {message.chat.id}")
         message_to_send = "Hello! Please enter the child's name"
         
         r.set(message.chat.id, str({}))
@@ -280,18 +183,26 @@ def get_age_from_gpt(message):
         openai_client = openai.OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
-        response = openai_client.responses.create(
-            model="gpt-5.1",
-            instructions=(
-                "You have to strictly respond with a number referring to the age in months."
-                "Do not add any other text to the response."
-                "If the unit is not strictly mentioned, it is referring to years and convert it to months."
-                "If it is not possible to extract the age, return 'None'."
-            ),
-            input=message,
-            reasoning={"effort": "none"}
+        response = openai_client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You have to strictly respond with a number referring to the age in months."
+                        "Do not add any other text to the response."
+                        "If the unit is not strictly mentioned, it is referring to years and convert it to months."
+                        "If it is not possible to extract the age, return 'None'."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": message
+                },
+            ],
+            temperature=0.7,
         )
-        report = response.output_text.strip()
+        report = response.choices[0].message.content.strip()
         return int(report)
     except Exception as e:
         logger.error(f"Error generating age from chatGPT: {e}")
@@ -319,13 +230,21 @@ def get_dev_age_from_gpt(message, age_group):
             f"If the estimated age is less than 3 months, return 0."
         )
 
-        response = openai_client.responses.create(
-            model="gpt-5.1",
-            instructions=system_content,
-            input=message,
-            reasoning={"effort": "none"}
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": message
+                },
+            ],
+            temperature=0.7,
         )
-        report = response.output_text.strip()
+        report = response.choices[0].message.content.strip()
         return int(report)
     except Exception as e:
         logger.error(f"Error generating development age from chatGPT: {e}")
@@ -345,26 +264,31 @@ def generate_recommendations(message, age_group):
             "The recommendations should be in Markdown format."
         )
 
-        response = openai_client.responses.create(
-            model="gpt-5.1",
-            instructions=system_content,
-            input=message,
-            reasoning={"effort": "none"}
+        response = openai_client.chat.completions.create(            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": message
+                },
+            ],
+            temperature=0.7,
         )
-        report = response.output_text.strip()
+        report = response.choices[0].message.content.strip()
         return report
     except Exception as e:
         logger.error(f"Error generating recommendations from chatGPT: {e}")
         return None
 
-def generate_recommendations_new(message, age, observations, child_name="the child", milestone_stats=None, age_group_label=""):
+def generate_recommendations_new(message, age, observations):
     try:
         openai_client = openai.OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
         logger.info(f"Observations: {observations}")
-        logger.info(f"Milestone stats: {milestone_stats}")
-        logger.info(f"Age group label: {age_group_label}")
        
         system_content = (
             "1. BASE INSTRUCTIONS:\n"
@@ -377,14 +301,10 @@ def generate_recommendations_new(message, age, observations, child_name="the chi
             "Using this information, you will generate a comprehensive report titled **`SPEECH AND LANGUAGE THERAPY REPORT`** following the specified format."
 
             "**Important:**\n"
-            "- You will receive a STRUCTURED list showing ACHIEVED milestones (marked with ✓) and NOT ACHIEVED milestones (marked with ✗).\n"
-            "- The 'Milestones Expected but Not Met' section MUST include ALL milestones marked with ✗ in the input.\n"
-            "- Do **not** include recommendations for milestones the child has already met (marked with ✓).\n"
-            "- If ALL milestones are achieved (no ✗ marks), state that all milestones are met and no delay is present.\n"
-            "- If there are ANY unmet milestones (✗ marks), the child has a potential delay and needs specific recommendations.\n"
-            "- Use the MILESTONE STATISTICS provided to accurately report the percentage of milestones met.\n"
-            "- Ensure all recommendations are relevant to the specific unmet milestones identified.\n"
-            "- Use the child's actual name provided in the input.\n"
+            "- Do **not** include recommendations for milestones the child has already met.\n"
+            "- If the child meets all milestones for their current developmental age range, omit the ** Milestones Expected but Not Met ** section or state that all milestones are met.\n"
+            "- Ensure all recommendations are relevant to the areas of need identified.\n"
+            "- The Milestones reported for a particular child may be from more than one age group. For example, a 12 month old child may have achieved the 6 month age group milestones and some of the 9 month age group milestones. So check for the milestone in the appropriate age group and calculate the delay and development age accordingly.\n"
             
             "\n\n2. ASHA Communication development milestones (FOR YOUR CONTEXT):\n"
 
@@ -567,48 +487,21 @@ def generate_recommendations_new(message, age, observations, child_name="the chi
             "    - [Sub Bullet]\n"
         )
 
-        # Build structured input for GPT with clear milestone data
-        stats_info = ""
-        if milestone_stats:
-            total = milestone_stats.get('total', 0)
-            achieved = milestone_stats.get('achieved', 0)
-            unmet = milestone_stats.get('unmet', 0)
-            percentage = milestone_stats.get('percentage_met', 0)
-            stats_info = f"""
-MILESTONE STATISTICS FOR CURRENT AGE GROUP ({age_group_label}):
-- Total milestones: {total}
-- Milestones achieved: {achieved}
-- Milestones NOT achieved: {unmet}
-- Percentage met: {percentage}%
-- Has unmet milestones: {'YES - POTENTIAL DELAY' if unmet > 0 else 'NO - All milestones met'}
-"""
-        
-        structured_input = f"""
-CHILD INFORMATION:
-- Name: {child_name}
-- Chronological Age: {age} months
-- Current Age Group: {age_group_label}
-
-{stats_info}
-
-{message}
-
-ADDITIONAL OBSERVATIONS FROM PARENT:
-{observations if observations else "None provided"}
-
-IMPORTANT: The milestones listed above clearly show which are ACHIEVED (✓) and which are NOT ACHIEVED (✗). 
-Use this information to accurately fill in the "Milestones Expected but Not Met" section.
-If there are unmet milestones, the child has a potential delay and needs recommendations.
-If all milestones are achieved, state that all milestones are met.
-"""
-        
-        response = openai_client.responses.create(
-            model="gpt-5.1",
-            instructions=system_content,
-            input=structured_input,
-            reasoning={"effort": "none"}
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-2024-11-20",
+            messages=[
+                {
+                    "role": "system",
+                    "content": system_content
+                },
+                {
+                    "role": "user",
+                    "content": f"Current age of the child: {age}, \nMilestones met by child: {message},\n Additional observations: {observations}"
+                },
+            ],
+            temperature=0.7,
         )
-        report = response.output_text.strip()
+        report = response.choices[0].message.content.strip()
         print(report)
         return report
     except Exception as e:
@@ -620,19 +513,26 @@ def get_word_age(dev_age):
         openai_client = openai.OpenAI(
                     api_key=os.environ.get("OPENAI_API_KEY"),
                 )        
-        response = openai_client.responses.create(
-            model="gpt-5.1",
-            instructions=(
-                "You have to strictly respond with age."
-                "Do not add any other text to the response."
-                "You will receive an age in months; you have to reply in this format: years, months."
-                "Ignore the years part if the input is less than 12."
-                "For example, 15: 1 year, 3 months."
-            ),
-            input=str(dev_age),
-            reasoning={"effort": "none"}
+        response = openai_client.chat.completions.create(            model="gpt-4",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You have to strictly respond with age."
+                        "Do not add any other text to the response."
+                        "You will receive an age in months; you have to reply in this format: years, months."
+                        "Ignore the years part if the input is less than 12."
+                        "For example, 15: 1 year, 3 months."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": str(dev_age)
+                },
+            ],
+            temperature=0.7,
         )
-        report = response.output_text.strip()
+        report = response.choices[0].message.content.strip()
         return report
     except Exception as e:
         logger.error(f"Error generating word age from chatGPT: {e}")
@@ -820,14 +720,8 @@ def submit_checklist(call):
             reply_markup=markup
         )
 
-        # Store structured milestone data for accurate report generation
-        structured_milestones = format_structured_milestones(user_data['checklists'], checklist_options)
-        milestone_stats = calculate_milestone_stats(user_data['checklists'], current_age_group, checklist_options)
-        
+        # Temporarily store the formatted checklist to use in the next step
         user_data['formatted_checklist'] = formatted_checklist
-        user_data['structured_milestones'] = structured_milestones['summary']
-        user_data['milestone_stats'] = milestone_stats
-        user_data['current_age_group_label'] = get_age_group_label(current_age_group)
         r.set(user_id, str(user_data))
 
     except Exception as e:
@@ -883,25 +777,8 @@ def skip_observations(call):
 def proceed_with_recommendations(message, user_data):
     """Generate and send recommendations based on milestones and observations."""
     try:
-        # Use structured milestone data for accurate report generation
-        structured_milestones = user_data.get('structured_milestones', user_data.get('formatted_checklist', ''))
-        milestone_stats = user_data.get('milestone_stats', {})
-        age_group_label = user_data.get('current_age_group_label', '')
-        child_name = user_data.get('name', 'the child')
-        
-        recommendations = generate_recommendations_new(
-            structured_milestones, 
-            user_data["age"], 
-            user_data.get('observations', ''),
-            child_name=child_name,
-            milestone_stats=milestone_stats,
-            age_group_label=age_group_label
-        )
-        
-        if recommendations is None:
-            bot.send_message(message.chat.id, "⚠️ Unable to generate recommendations. Please try again.")
-            return
-            
+        formatted_checklist = user_data.get('formatted_checklist', '')
+        recommendations = generate_recommendations_new(formatted_checklist, user_data["age"], user_data.get('observations', ''))
         escaped_recommendations = escape_markdown_v2(recommendations)
 
         user_data['recommendations'] = recommendations
@@ -1164,13 +1041,9 @@ def get_child_age(message):
 @app.route(f"/{WEBHOOK_SECRET}", methods=["POST"])
 def webhook():
     """Webhook to handle incoming updates from Telegram."""
-    try:
-        update = types.Update.de_json(request.data.decode("utf8"))
-        bot.process_new_updates([update])
-        return "ok", 200
-    except Exception as e:
-        logger.error(f"Error processing webhook: {e}")
-        return "error", 500
+    update = types.Update.de_json(request.data.decode("utf8"))
+    bot.process_new_updates([update])
+    return "ok", 200
 
 if __name__ == "__main__":
     app.run()
