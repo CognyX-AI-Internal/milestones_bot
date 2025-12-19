@@ -397,11 +397,11 @@ def generate_recommendations_new(message, age, observations):
             "- **Recommendations:** Provide recommendations solely based on the unmet milestones.\n"
             "- **Estimated Developmental Age Range:** The estimated developmental age range is the age range that the child's milestones are functioning at. For example, if the child has met all the milestones for the 6-9 month age range, but has not met any milestones for the 10-12 month age range, the estimated developmental age range is 6-9 months.\n\n"
             "- **Percentage of Delay:** Calculate the accurate percentage of delay based on the difference between the developmental age range and the chronological age of the child.\n\n"
-
             "For example if a child has chronological age of 14 months and has developmental age in 4 to 6 month age range, the percentage of delay is ((14-6)/14)*100 = 57.14% to ((14-4)/14)*100 = 71.42% .\n"
             "- Donot display formula for percentage of delay. Just display the percentage range of delay."
-            "- Do not say that the child has a delay if the child has met all the milestones for the current age range.\n\n"
-          
+            "\n\n- Do not say that the child has a delay if the child has met all the milestones for the current age range.\n\n"
+            "- Mention Additional observations if provided by parent in the Observations section by blending them in the bullet points.\n\n"
+            "- If child has met all the milestones for the current age range, then donot mention the 'child has a delay' line in the report instead write 'The child has met all the milestones for the current age range.'."
 
 
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
@@ -413,7 +413,7 @@ def generate_recommendations_new(message, age, observations):
             "The Communication Milestone Screening Protocol: Birth to 5 (CMSP: B-5) was given based on parent report and/or clinical observation.\n\n"
             "The CMSP: B-5 is a criterion-based speech and language screening tool for children from birth to age 5. It incorporates parent reports, observations in natural environments, and session documentation, systematically comparing findings to the ASHA Developmental Milestones for speech and language. This tool is designed to identify early signs of potential communication delays and to inform decisions regarding the need for further comprehensive assessment.\n\n"
 
-            "## Observations:[Mention [Additional observations] if provided by user.]\n"
+            "## Observations:\n"
             "Child is [Child’s Current Age] old at the time of screening. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [Developmental Age Range] according to their milestones. Clinical observations and parent reports indicate the following:\n\n"
             "  - [Main Bullet Point 1]\n"
             "  - [Main Bullet Point 2]\n"
