@@ -27,6 +27,7 @@ redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379/0")
 pool = ConnectionPool.from_url(redis_url)
 
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+OPENAI_MODEL = os.environ.get("OPENAI_MODEL", "gpt-5.6-terra")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 URL = os.environ.get("URL")
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
@@ -184,7 +185,7 @@ def get_age_from_gpt(message):
             api_key=os.environ.get("OPENAI_API_KEY"),
         )
         response = openai_client.responses.create(
-            model="gpt-5.1",
+            model=OPENAI_MODEL,
             instructions=(
                 "You have to strictly respond with a number referring to the age in months."
                 "Do not add any other text to the response."
@@ -223,7 +224,7 @@ def get_dev_age_from_gpt(message, age_group):
         )
 
         response = openai_client.responses.create(
-            model="gpt-5.1",
+            model=OPENAI_MODEL,
             instructions=system_content,
             input=message,
             reasoning={"effort": "none"}
@@ -249,7 +250,7 @@ def generate_recommendations(message, age_group):
         )
 
         response = openai_client.responses.create(
-            model="gpt-5.1",
+            model=OPENAI_MODEL,
             instructions=system_content,
             input=message,
             reasoning={"effort": "none"}
@@ -402,6 +403,7 @@ def generate_recommendations_new(message, age, observations):
             "\n\n- Do not say that the child has a delay if the child has met all the milestones for the current age range.\n\n"
             "- Mention Additional observations if provided by parent in the Observations section by blending them in the bullet points.\n\n"
             "- If child has met all the milestones for the current age range, then donot mention the 'child has a delay' line in the report instead write 'The child has met all the milestones for the current age range.'."
+            "\n\n- Always include the 'Recommendations for Parents' and 'Recommendations for the Clinical Team' sections, even when the child has met all milestones for the current age range. In that case, provide general age-appropriate enrichment activities for parents and routine monitoring guidance for the clinical team.\n\n"
 
 
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
@@ -471,13 +473,12 @@ def generate_recommendations_new(message, age, observations):
         )
 
         response = openai_client.responses.create(
-            model="gpt-5-mini",
+            model=OPENAI_MODEL,
             instructions=system_content,
             input=f"Current age of the child: {age}, \n\nMilestones met by child: {message},\n\n Additional observations: {observations}",
             # reasoning={"effort": "none"}
         )
         report = response.output_text.strip()
-        print(report)
         return report
     except Exception as e:
         logger.error(f"Error generating recommendations from chatGPT: {e}")
@@ -489,7 +490,7 @@ def get_word_age(dev_age):
                     api_key=os.environ.get("OPENAI_API_KEY"),
                 )        
         response = openai_client.responses.create(
-            model="gpt-5.1",
+            model=OPENAI_MODEL,
             instructions=(
                 "You have to strictly respond with age."
                 "Do not add any other text to the response."
