@@ -14,6 +14,8 @@ import re
 import smtplib
 from email.mime.text import MIMEText
 from urllib.parse import urlparse
+import screening_logic
+from milestone_domains import MILESTONE_DOMAINS
 load_dotenv()
 
 logging.basicConfig(
@@ -261,7 +263,7 @@ def generate_recommendations(message, age_group):
         logger.error(f"Error generating recommendations from chatGPT: {e}")
         return None
 
-def generate_recommendations_new(message, age, observations):
+def generate_recommendations_new(message, age, observations, facts=None):
     try:
         openai_client = openai.OpenAI(
             api_key=os.environ.get("OPENAI_API_KEY"),
@@ -381,42 +383,69 @@ def generate_recommendations_new(message, age, observations):
             "Blends word parts, like cup + cake = cupcake. Identifies some rhyming words, like cat and hat.\n"
             "Produces most consonants correctly, and speech is understandable in conversation.\n\n\n"
             
-            "3. Determination of Developmental Age Range, Unmet Milestones and Delay Percentage:"
-            "3.1 Use the child's age to determine the current chronological age range."
-            "3.2 Use the milestones met by the child to determine the milestones that are not met according to the child's current chronological age range and relevant ASHA Developmental Milestones."
-            "3.3 Calculate the delay percentage based on the difference between the chronological age and the developmental age range.\n\n"
+            "3. DERIVED VALUES (DO NOT COMPUTE THESE):\n"
+            "The chronological age range, the developmental age range, the unmet milestone list and the\n"
+            "delay percentage are all computed for you by the screening software and supplied in the\n"
+            "VERIFIED FACTS block at the end of the user message. You must not derive, recalculate or\n"
+            "second-guess any of them. See section 5.\n\n"
 
             "4. OUTPUT INSTRUCTIONS:\n"
             "Use the provided information about the child to fill in the dynamic sections.\n\n"
             
             "**Follow these instructions for the output:**\n"
             "- **Format:** Ensure the report strictlyfollows the exact Markdown format, including headings, Main Bullets and nested sub-bullet points. No additions or explanations whatsoever.\n"
-            "- **Developmental Age Range:** Determine the ASHA developmental age range for which the child has met all required milestones.\n"
-            "- **Milestones Achieved:** List only the milestones achieved wihin the current age range.\n"
-            "- **Milestones Expected but Not Met:** Include only the unmet milestones of the child from the current chronological age range. Do **not** include milestones from higher age ranges.\n"
-            "- **Delay Percentage:** Calculate and include the delay percentage only if there are unmet milestones in the current age range.\n"
-            "- **Recommendations:** Provide recommendations solely based on the unmet milestones.\n"
-            "- **Estimated Developmental Age Range:** The estimated developmental age range is the age range that the child's milestones are functioning at. For example, if the child has met all the milestones for the 6-9 month age range, but has not met any milestones for the 10-12 month age range, the estimated developmental age range is 6-9 months.\n\n"
-            "- **Percentage of Delay:** Calculate the accurate percentage of delay based on the difference between the developmental age range and the chronological age of the child.\n\n"
-            "For example if a child has chronological age of 14 months and has developmental age in 4 to 6 month age range, the percentage of delay is ((14-6)/14)*100 = 57.14% to ((14-4)/14)*100 = 71.42% .\n"
-            "- Donot display formula for percentage of delay. Just display the percentage range of delay."
-            "\n\n- Do not say that the child has a delay if the child has met all the milestones for the current age range.\n\n"
+            "- **Developmental Age Range:** Use DEVELOPMENTAL_AGE_RANGE from the FACTS block verbatim.\n"
+            "- **Milestones Achieved:** Use the MILESTONES_MET list from the FACTS block.\n"
+            "- **Milestones Expected but Not Met:** Use the MILESTONES_NOT_MET list from the FACTS block, exactly and completely. Do **not** add milestones from any other age range.\n"
+            "- **Delay Percentage:** Use DELAY_PERCENTAGE from the FACTS block verbatim. Never print a percentage that does not appear there, and never show a formula.\n"
+            "- **Recommendations:** Provide recommendations solely based on the unmet milestones, unless MILESTONES_NOT_MET is NONE, in which case base them on enrichment and continued growth.\n"
+            "- Do not say that the child has a delay if the FACTS block reports no delay.\n\n"
             "- Mention Additional observations if provided by parent in the Observations section by blending them in the bullet points.\n\n"
             "- If child has met all the milestones for the current age range, then donot mention the 'child has a delay' line in the report instead write 'The child has met all the milestones for the current age range.'."
             "\n\n- Always include the 'Recommendations for Parents' and 'Recommendations for the Clinical Team' sections, even when the child has met all milestones for the current age range. In that case, provide general age-appropriate enrichment activities for parents and routine monitoring guidance for the clinical team.\n\n"
 
 
+            "\n\n5. AUTHORITATIVE DERIVED FACTS\n"
+            "The user message ends with a \"VERIFIED FACTS\" block computed deterministically by the\n"
+            "screening software from the clinician's checklist responses. Those values are\n"
+            "authoritative and already correct.\n\n"
+            "- Use them verbatim. Do NOT recalculate the delay percentage, the developmental age\n"
+            "  range, the current chronological age range, or the unmet milestone list.\n"
+            "- Never contradict the FACTS block anywhere in the report, including in prose.\n"
+            "- The unmet milestone list is exhaustive. Never introduce a milestone from a higher age band.\n"
+            "- Reproduce each milestone in the \"Milestones Achieved\" and \"Milestones Expected but Not\n"
+            "  Met\" sections VERBATIM as written in the FACTS block, including its examples. These are\n"
+            "  the official ASHA milestone descriptors and the report must remain traceable to them, so\n"
+            "  do not paraphrase, abbreviate, merge, or drop any of them. Your own clinical wording\n"
+            "  belongs in the Observations and Recommendations sections.\n"
+            "- If ALL_MILESTONES_MET_FOR_CURRENT_RANGE is YES, the child has NO delay per the\n"
+            "  checklist: omit the \"Milestones Expected but Not Met\" section and print no percentage.\n"
+            "  This reflects the checklist only - see the SAFETY OVERRIDE in the FACTS block: a concern\n"
+            "  described in the parent or clinician narrative (not speaking, not responding to their\n"
+            "  name, lost skills, no eye contact, hearing concerns) must still be surfaced and followed\n"
+            "  up. An all-met checklist never overrides a reported red flag.\n"
+            "- Produce BOTH Recommendations sections in full in every report, including when there is\n"
+            "  no delay and nothing unmet.\n"
+            "- The FACTS block is internal plumbing. Never print its field names (DELAY_PERCENTAGE,\n"
+            "  ALL_MILESTONES_MET_FOR_CURRENT_RANGE, MILESTONES_NOT_MET and the like) or refer to \"the\n"
+            "  FACTS block\" in the report. This report is read by parents and clinicians.\n"
+            "- \"Omit a section\" means the heading itself must not appear at all. Do not print the\n"
+            "  heading followed by \"omitted\", \"none\", or an explanation.\n"
+            "- The Expressive / Receptive / Social Communication grouping is a template, not a quota.\n"
+            "  If a domain has no milestones in a given section, leave that domain out of that section\n"
+            "  entirely. Never write \"none reported\" or explain that a domain was empty.\n\n"
+
             "## SPEECH AND LANGUAGE THERAPY REPORT\n"
 
             "## Child's Age:\n"
-            "[Insert Child’s Age Here]"
+            "[CHRONOLOGICAL_AGE from the FACTS block, which is stated in MONTHS. Convert to years and months for readability if you wish, but never treat the number as years.]"
 
             "## Overview:\n"
             "The Communication Milestone Screening Protocol: Birth to 5 (CMSP: B-5) was given based on parent report and/or clinical observation.\n\n"
             "The CMSP: B-5 is a criterion-based speech and language screening tool for children from birth to age 5. It incorporates parent reports, observations in natural environments, and session documentation, systematically comparing findings to the ASHA Developmental Milestones for speech and language. This tool is designed to identify early signs of potential communication delays and to inform decisions regarding the need for further comprehensive assessment.\n\n"
 
             "## Observations:\n"
-            "Child is [Child’s Current Age] old at the time of screening. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [Developmental Age Range] according to their milestones. Clinical observations and parent reports indicate the following:\n\n"
+            "Child is [Child’s Current Age] old at the time of screening, which falls within the [CURRENT_CHRONOLOGICAL_AGE_RANGE] ASHA age range. Based on the ASHA Developmental Milestones, the child’s speech and language abilities are functioning at the developmental range of [DEVELOPMENTAL_AGE_RANGE] according to their milestones. Clinical observations and parent reports indicate the following:\n\n"
             "  - [Main Bullet Point 1]\n"
             "  - [Main Bullet Point 2]\n"
             "  - [Main Bullet Point 3]\n"
@@ -475,7 +504,11 @@ def generate_recommendations_new(message, age, observations):
         response = openai_client.responses.create(
             model=OPENAI_MODEL,
             instructions=system_content,
-            input=f"Current age of the child: {age}, \n\nMilestones met by child: {message},\n\n Additional observations: {observations}",
+            input=(
+                f"Current age of the child: {age}, \n\nMilestones met by child: {message},"
+                f"\n\n Additional observations: {observations}"
+                + (facts or "")
+            ),
             # reasoning={"effort": "none"}
         )
         report = response.output_text.strip()
@@ -747,7 +780,36 @@ def proceed_with_recommendations(message, user_data):
     """Generate and send recommendations based on milestones and observations."""
     try:
         formatted_checklist = user_data.get('formatted_checklist', '')
-        recommendations = generate_recommendations_new(formatted_checklist, user_data["age"], user_data.get('observations', ''))
+
+        # Every number in the report is computed here, not by the model. If this
+        # fails we must not fall back to letting the model do the arithmetic - an
+        # unverified clinical report is worse than no report.
+        try:
+            result = screening_logic.analyze(
+                user_data["age"],
+                {int(k): v for k, v in user_data.get('checklists', {}).items()},
+                checklist_options,
+                MILESTONE_DOMAINS,
+            )
+        except screening_logic.OutOfScope as e:
+            logger.error(f"Screening out of scope: {e}")
+            age_more_than_range(message)
+            return
+
+        facts = screening_logic.build_facts_block(result)
+        logger.info(
+            "Screening computed: chrono=%s dev=%s delay=%s administered=%s presumed=%s unmet=%d",
+            result.chrono_band.label, result.dev_band_label, result.delay_text,
+            result.administered_keys, result.presumed_keys, len(result.unmet),
+        )
+
+        recommendations = generate_recommendations_new(
+            formatted_checklist, user_data["age"], user_data.get('observations', ''),
+            facts=facts,
+        )
+        if not recommendations:
+            bot.send_message(message.chat.id, "An error occurred while generating the report. Please try again.")
+            return
         escaped_recommendations = escape_markdown_v2(recommendations)
 
         user_data['recommendations'] = recommendations
@@ -978,31 +1040,20 @@ def get_child_age(message):
         r.set(message.chat.id, str(user_data))
         # bot.send_message(message.chat.id, f"Child's name and age saved: {user_data}", parse_mode="Markdown")
 
-        if age <= 3:
-            age_group = 3
-        elif age <= 6:
-            age_group = 6
-        elif age <= 9:
-            age_group = 9
-        elif age <= 12:
-            age_group = 12
-        elif age <= 18:
-            age_group = 18
-        elif age <= 24:
-            age_group = 24
-        elif age <= 36:
-            age_group = 36
-        elif age <= 48:
-            age_group = 48 
-        else:
-            age_group = 60  
+        # Single source of truth for band boundaries; raises above 5 years rather
+        # than clamping an out-of-scope child into the top band.
+        age_group = screening_logic.band_for_age(age).key
 
         user_data = ast.literal_eval(r.get(message.chat.id).decode("utf-8"))
         user_data["age_group"] = age_group
-        r.set(message.chat.id, str(user_data))    
+        r.set(message.chat.id, str(user_data))
 
         checklist(message, checklist_options[age_group])
-    except ValueError:
+    except screening_logic.OutOfScope:
+        age_more_than_range(message)
+    except (ValueError, TypeError):
+        # get_age_from_gpt returns None when it cannot parse the input, which
+        # made int(None) raise TypeError and leave the user with no reply.
         msg = bot.send_message(message.chat.id, "Invalid age. Please enter a valid age.")
         bot.register_next_step_handler(msg, get_child_age)
 
