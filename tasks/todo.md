@@ -128,7 +128,6 @@ and were produced by the current harness; the older gpt-5.6 numbers are supersed
 - Post-deploy: `heroku run python prod_check.py` -> all production checks passed on both v78
   and v79; Python 3.12.16; 0 errors; webhook 0 pending, no last_error.
 - Rollback: `heroku rollback v78` (py3.10 on heroku-24) or `v77` (heroku-22).
-- **Pending:** Redis 7.2 -> 9:
-  `heroku redis:upgrade redis-parallel-02106 -v 9 -a cmsp-speech-lang-screening-bot`.
-  Not run in this session. Current production code passed prod_check on Valkey 9.1.3.
-  Then rerun `prod_check.py` on the dyno.
+- **Done 2026-11-18:** Redis 7.2.15 -> Valkey 9.1.3 (`heroku redis:upgrade redis-parallel-02106 -v 9`). In-place upgrade took ~7 min; Heroku changed REDIS_URL and restarted dynos (v80).
+  Verified: dynos up, redis set/get on the dyno reports `server_name: valkey 9.1.3`, 0 errors, webhook 0 pending.
+  `prod_check.py` on the dyno: all production checks passed.
