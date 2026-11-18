@@ -113,3 +113,22 @@ Earlier work on this branch, kept for the record.
 Rollback for the model change: set Heroku config var `OPENAI_MODEL=gpt-5.1`.
 Note the eval results in `evals/results/` are from the deterministic-logic measurement above
 and were produced by the current harness; the older gpt-5.6 numbers are superseded.
+
+## Heroku platform migration — 2026-11-18
+
+- **v78** (`643fc62`): stack heroku-22 -> heroku-24, same code.
+- **v79** (`cfc1fe8`): Python 3.10 -> 3.12 (Heroku installs 3.12.16). Heroku drops 3.10 on
+  2027-01-06. Pipfile.lock relocked on Linux / Python 3.12 / pipenv 2026.10.4. Direct pins
+  unchanged; 19 transitive packages moved to current releases (pydantic 2.14.3, multidict 7,
+  jiter 0.19, ...); removed async-timeout and exceptiongroup. The new lock needs Python >= 3.11.
+- Pre-deploy, py3.10 vs py3.12: tests 73/73 on both; `prod_check.py` logic, eval `--rescore`
+  and `--compare` identical (no regressions); webhook flow 200/200/404; Redis checks on Valkey
+  7.2.15 and 9.1.3; one complete live screening (OpenAI age parse + report) per version, with
+  identical deterministic fields (dev band 4 to 6 months, delay 57.14% to 71.43%).
+- Post-deploy: `heroku run python prod_check.py` -> all production checks passed on both v78
+  and v79; Python 3.12.16; 0 errors; webhook 0 pending, no last_error.
+- Rollback: `heroku rollback v78` (py3.10 on heroku-24) or `v77` (heroku-22).
+- **Pending:** Redis 7.2 -> 9:
+  `heroku redis:upgrade redis-parallel-02106 -v 9 -a cmsp-speech-lang-screening-bot`.
+  Not run in this session. Current production code passed prod_check on Valkey 9.1.3.
+  Then rerun `prod_check.py` on the dyno.
